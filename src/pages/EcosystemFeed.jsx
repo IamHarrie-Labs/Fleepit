@@ -11,17 +11,30 @@ const GROQ_MODEL  = "llama-3.3-70b-versatile";
 const REFRESH_MS  = 5 * 60 * 1000;
 const BRIEFING_TTL_MS = 2 * 60 * 60 * 1000;
 
-// ── CORS proxy with fallback ──────────────────────────────────────────────────
-const PROXIES = [
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-];
+// ── CORS proxy pool — tried in order, bust server-side caches with unique ts ──
+function makeProxies(url) {
+  const bust = Date.now(); // unique per call → defeats proxy-layer caching
+  return [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}&_=${bust}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
+  ];
+}
 
 async function proxyFetch(url) {
-  for (const make of PROXIES) {
+  const proxies = makeProxies(url);
+  for (const proxyUrl of proxies) {
     try {
-      const r = await fetch(make(url), { cache: "no-store" });
-      if (r.ok) return await r.text();
+      const r = await fetch(proxyUrl, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
+      if (r.ok) {
+        const text = await r.text();
+        // Reject obvious error payloads
+        if (text && text.length > 100 && !text.startsWith("<!DOCTYPE")) return text;
+      }
     } catch { /* try next */ }
   }
   return null;

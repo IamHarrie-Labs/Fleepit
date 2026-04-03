@@ -23,20 +23,24 @@ const NITTER_HOSTS = [
   "https://twiiit.com",
 ];
 
-// ── CORS proxy wrappers ───────────────────────────────────────────────────────
-const PROXY = [
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-];
-
+// ── CORS proxy wrappers — bust per-call to defeat proxy-layer caching ─────────
 async function fetchViaProxy(url) {
-  for (const make of PROXY) {
+  const bust = Date.now();
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}&_=${bust}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  ];
+
+  for (const proxyUrl of proxies) {
     try {
-      const r = await fetch(make(url), { cache: "no-store" });
+      const r = await fetch(proxyUrl, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       if (r.ok) {
         const text = await r.text();
-        // Reject obviously wrong payloads (HTML error pages etc.)
-        if (text.includes("<item>") || text.includes("<rss")) return text;
+        if (text && (text.includes("<item>") || text.includes("<rss"))) return text;
       }
     } catch { /* try next proxy */ }
   }
