@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Navy background -->
-  <rect width="32" height="32" rx="7" fill="#0B1E3D"/>
-  <!-- "F" letter in white -->
-  <text x="6" y="24" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="900" fill="white">F</text>
-  <!-- "It" badge — white pill with navy text -->
-  <rect x="18" y="10" width="12" height="12" rx="3" fill="white"/>
-  <text x="24" y="20" font-family="Arial Black, Arial, sans-serif" font-size="8" font-weight="900" fill="#0B1E3D" text-anchor="middle">It</text>
+  <!-- Green background matching the brand "It" badge -->
+  <rect width="32" height="32" rx="6" fill="#1B6B2A"/>
+  <!-- "It" in bold white -->
+  <text x="16" y="23.5" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-0.5">It</text>
 </svg>
