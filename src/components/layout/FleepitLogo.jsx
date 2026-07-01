@@ -2,46 +2,47 @@ import { cn } from "../../lib/utils";
 
 /**
  * FleepitLogo
- * Replicates the brand mark: bold "Fleep" + "It" inside a dark-green rectangle.
+ * The brand mark from the official design system: an interlocking
+ * bracket glyph paired with the "Fleepit" wordmark. Single source of
+ * truth so the icon stays identical across Landing, the app nav, and
+ * the browser favicon.
  *
  * Props:
- *   variant  "dark"  – white "Fleep" text  (for navy sidebar background)
- *            "light" – black "Fleep" text  (for white / ash backgrounds)
+ *   variant  "dark"  – white icon + text  (for dark backgrounds)
+ *            "light" – black icon + text (for white / cream backgrounds)
  *   size     "sm" | "md" | "lg"
  *   showSub  boolean – show the "Mantle Intelligence" subtitle
  */
+const ICON_PATH =
+  "M128.005 191.173C128.448 156.208 156.93 128 192 128L192 64L128 64C128 99.346 99.346 128 64 128L64 192L128 192ZM192 256L64 256C28.654 256 0 227.346 0 192L0 64L64 64L64 0L192 0C227.346 0 256 28.654 256 64L256 192L192 192Z";
+
+const SIZE_MAP = {
+  sm: { icon: 20, text: "text-base", sub: "text-[10px]" },
+  md: { icon: 24, text: "text-xl", sub: "text-xs" },
+  lg: { icon: 30, text: "text-2xl", sub: "text-sm" },
+};
+
 export default function FleepitLogo({
   variant = "dark",
   size = "md",
   showSub = false,
   className = "",
 }) {
-  const sizeMap = {
-    sm: { text: "text-lg",  badge: "text-base  px-1   py-0.5 rounded   ml-1",   sub: "text-[10px]" },
-    md: { text: "text-2xl", badge: "text-xl    px-1.5 py-0.5 rounded-md ml-1.5", sub: "text-xs"     },
-    lg: { text: "text-3xl", badge: "text-2xl   px-2   py-1   rounded-md ml-2",   sub: "text-sm"     },
-  };
-
-  const s = sizeMap[size] ?? sizeMap.md;
-  const fleepColor = variant === "dark" ? "text-white" : "text-gray-900";
-  const subColor   = variant === "dark" ? "text-white/40" : "text-gray-400";
+  const s = SIZE_MAP[size] ?? SIZE_MAP.md;
+  const color = variant === "dark" ? "#FFFFFF" : "#0A0A0A";
+  const subColor = variant === "dark" ? "text-white/40" : "text-gray-400";
 
   return (
     <div className={cn("flex flex-col", className)}>
-      <div className="flex items-center gap-0 leading-none">
-        {/* "Fleep" */}
-        <span className={cn("font-black tracking-tight", s.text, fleepColor)}>
-          Fleep
-        </span>
-        {/* "It" badge — dark green rectangle matching the brand image */}
+      <div className="flex items-center gap-2 leading-none">
+        <svg width={s.icon} height={s.icon} viewBox="0 0 256 256" fill={color}>
+          <path d={ICON_PATH} />
+        </svg>
         <span
-          className={cn(
-            "font-black text-navy leading-none inline-flex items-center justify-center",
-            "bg-white",
-            s.badge
-          )}
+          className={cn("font-semibold tracking-tight", s.text)}
+          style={{ color, letterSpacing: "-0.02em" }}
         >
-          It
+          Fleepit
         </span>
       </div>
 

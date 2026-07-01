@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Green background matching the brand "It" badge -->
-  <rect width="32" height="32" rx="6" fill="#1B6B2A"/>
-  <!-- "It" in bold white -->
-  <text x="16" y="23.5" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-0.5">It</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Cream background matching the app's brand surface -->
+  <rect width="256" height="256" rx="48" fill="#F5F5F5"/>
+  <!-- Interlocking bracket mark, black, matching the in-app FleepitLogo -->
+  <path fill="#0A0A0A" d="M128.005 191.173C128.448 156.208 156.93 128 192 128L192 64L128 64C128 99.346 99.346 128 64 128L64 192L128 192ZM192 256L64 256C28.654 256 0 227.346 0 192L0 64L64 64L64 0L192 0C227.346 0 256 28.654 256 64L256 192L192 192Z"/>
 </svg>

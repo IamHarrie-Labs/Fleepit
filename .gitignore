@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Claude Code local config
+.claude/
+
+# Design handoff reference bundle (not app source)
+.design-handoff/
+
 # Environment variables — never commit real keys
 .env
 .env.local
