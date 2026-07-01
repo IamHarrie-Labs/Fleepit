@@ -288,9 +288,20 @@ export default function Landing({ onLaunch }) {
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.28)", fontWeight: 400, textAlign: "center" }}>
           AI-native research agent for the Mantle ecosystem.
         </p>
-        <button onClick={onLaunch} className="fleepit-footer-link" style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer", transition: "color 0.2s" }}>
-          Launch App →
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <a
+            href="https://github.com/IamHarrie-Labs/Fleepit/tree/main/skills/mantle-yield-research"
+            target="_blank"
+            rel="noreferrer"
+            className="fleepit-footer-link"
+            style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.5)", textDecoration: "none", transition: "color 0.2s" }}
+          >
+            Fork the Agent Skill →
+          </a>
+          <button onClick={onLaunch} className="fleepit-footer-link" style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer", transition: "color 0.2s" }}>
+            Launch App →
+          </button>
+        </div>
       </footer>
     </div>
   );

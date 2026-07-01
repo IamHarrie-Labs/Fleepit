@@ -38,6 +38,23 @@ flow direction.
 `GET https://api.llama.fi/v2/chains` → `[{ name, tvl, ... }]`, used to rank
 Mantle among all chains by TVL.
 
+## DeFiLlama — protocols
+`GET https://api.llama.fi/protocols`
+
+Returns `Protocol[]`. Filter to protocols whose `chains` array includes
+`"Mantle"`. Use `chainTvls.Mantle` for the Mantle-specific TVL (falls back to
+`tvl` if absent), `change_7d` / `change_1m` for flow direction, `category` for
+grouping (Lending, DEXes, CEX, Bridge, RWA, …).
+
+## CoinGecko — Mantle ecosystem tokens
+`GET https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=mantle-ecosystem&per_page=20&page=1&sparkline=false&price_change_percentage=24h,7d`
+
+Returns an array of token market objects (`id`, `symbol`, `name`,
+`current_price`, `market_cap`, `total_volume`,
+`price_change_percentage_24h`, `price_change_percentage_7d_in_currency`).
+**Filter out stablecoins by default** (see the interpretation cheatsheet
+below) unless the user explicitly wants dollar-pegged assets.
+
 ## CoinGecko — MNT price
 `GET https://api.coingecko.com/api/v3/simple/price?ids=mantle&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`
 
@@ -57,3 +74,10 @@ Returns `{ mantle: { usd, usd_24h_change, usd_market_cap } }`.
 - **`apyReward` >> `apyBase`** → yield depends on emissions that can taper.
 - **`predictedClass: "Down"`** → expect the yield to fall.
 - **High APY + TVL < $100k** → illiquid, exit-liquidity risk.
+- **Token volume tiny relative to market cap** (e.g. $30k volume on a $800M
+  cap) → thin liquidity, hard to exit a position without slippage. Flag it
+  even if the token otherwise looks attractive.
+- **Recommending "good tokens to invest in"** → never include a dollar-pegged
+  stablecoin in that list. `fetch-tokens.mjs` already excludes them by
+  default (known symbol list + price-near-$1 heuristic); don't pass
+  `--include-stablecoins` unless the user explicitly asked about stablecoins.
