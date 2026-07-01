@@ -20,18 +20,17 @@ function MenuIcon({ open }) {
 }
 
 /**
- * Shared top nav across FleepitApp, Alerts, and Docs.
+ * Shared top nav across FleepitApp and Alerts.
  * Collapses into a hamburger drawer below 768px so nothing overflows.
  *
  * Props:
- *   active        'app' | 'alerts' | 'docs'
+ *   active        'app' | 'alerts'
  *   onHome        click logo -> back to Landing
  *   onNavApp      go to research terminal
  *   onNavAlerts   go to Alerts page
- *   onNavDocs     go to Docs page
  *   extra         optional extra nav items (e.g. Tokens/Pools quick links), rendered both desktop + mobile
  */
-export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onNavDocs, extra }) {
+export default function AppNav({ active, onHome, onNavApp, onNavAlerts, extra }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -79,7 +78,6 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onNavDoc
           {extra}
           <span className="fleepit-nav-link" onClick={onNavApp} style={linkStyle(active === "app")}>Research</span>
           <span className="fleepit-nav-link" onClick={onNavAlerts} style={linkStyle(active === "alerts")}>Alerts</span>
-          <span className="fleepit-nav-link" onClick={onNavDocs} style={linkStyle(active === "docs")}>Docs</span>
         </div>
 
         <div className="fleepit-nav-desktop" style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -102,7 +100,6 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onNavDoc
           {extra && <div style={{ display: "flex", flexDirection: "column" }}>{extra}</div>}
           <button onClick={go(onNavApp)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "app" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Research</button>
           <button onClick={go(onNavAlerts)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "alerts" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Alerts</button>
-          <button onClick={go(onNavDocs)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "docs" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Docs</button>
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 4px 4px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN }} />
             <span style={{ fontSize: 12, fontWeight: 500, color: "#9B9B9B", letterSpacing: "0.02em" }}>LIVE</span>

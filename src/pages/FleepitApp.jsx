@@ -57,6 +57,32 @@ function MicIcon({ color }) {
     </svg>
   );
 }
+// Top-level (stable) component — must live outside FleepitApp's render body,
+// otherwise React treats it as a brand-new component type on every keystroke
+// and remounts the <input>, dropping focus after each character.
+function SearchBox({ placeholder, value, onChange, onSubmit, voiceSupported, listening, onToggleVoice, voiceIconColor, disabled }) {
+  return (
+    <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 18, padding: "5px 5px 5px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+      <SearchIcon />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && value.trim()) onSubmit(); }}
+        placeholder={placeholder}
+        style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 400, color: BLACK, outline: "none", padding: "14px 0", minWidth: 0, fontFamily: "inherit" }}
+      />
+      {voiceSupported && (
+        <button onClick={onToggleVoice} style={{ width: 42, height: 42, borderRadius: 10, border: "none", background: listening ? BLACK : "#F0F0F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }} title="Voice input">
+          <MicIcon color={voiceIconColor} />
+        </button>
+      )}
+      <button onClick={onSubmit} disabled={disabled} className="fleepit-research-btn" style={{ background: BLACK, color: "white", border: "none", borderRadius: 12, padding: "11px 22px", fontSize: 14, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit", letterSpacing: "-0.01em", opacity: disabled ? 0.5 : 1 }}>
+        Research
+      </button>
+    </div>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -312,7 +338,7 @@ const SUGGESTIONS = [
   { label: "Chain health", q: "Mantle chain health, TVL and activity trends" },
 ];
 
-export default function FleepitApp({ onHome, onNavAlerts, onNavDocs }) {
+export default function FleepitApp({ onHome, onNavAlerts }) {
   const [mode, setMode] = useState("home"); // home | loading | results
   const [inputValue, setInputValue] = useState("");
   const [currentQuery, setCurrentQuery] = useState("");
@@ -460,29 +486,7 @@ export default function FleepitApp({ onHome, onNavAlerts, onNavDocs }) {
 
   const isHome = mode === "home", isLoading = mode === "loading", hasResults = mode === "results";
   const r = result || {};
-  const voiceBtnStyle = { width: 42, height: 42, borderRadius: 10, border: "none", background: listening ? BLACK : "#F0F0F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" };
   const voiceIconColor = listening ? "#FFFFFF" : "#5A5A5A";
-
-  const SearchBox = ({ placeholder }) => (
-    <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 18, padding: "5px 5px 5px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-      <SearchIcon />
-      <input
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && inputValue.trim()) research(inputValue); }}
-        placeholder={placeholder}
-        style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 400, color: BLACK, outline: "none", padding: "14px 0", minWidth: 0, fontFamily: "inherit" }}
-      />
-      {voiceSupported && (
-        <button onClick={toggleVoice} style={voiceBtnStyle} title="Voice input">
-          <MicIcon color={voiceIconColor} />
-        </button>
-      )}
-      <button onClick={submitQuery} disabled={!hasKey} className="fleepit-research-btn" style={{ background: BLACK, color: "white", border: "none", borderRadius: 12, padding: "11px 22px", fontSize: 14, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit", letterSpacing: "-0.01em", opacity: hasKey ? 1 : 0.5 }}>
-        Research
-      </button>
-    </div>
-  );
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", minHeight: "100vh", background: "#F5F5F5", color: BLACK }}>
@@ -492,7 +496,6 @@ export default function FleepitApp({ onHome, onNavAlerts, onNavDocs }) {
         onHome={onHome}
         onNavApp={goHome}
         onNavAlerts={onNavAlerts}
-        onNavDocs={onNavDocs}
         extra={
           <>
             <span className="fleepit-nav-link" onClick={() => research("Top performing tokens on Mantle right now")} style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", cursor: "pointer", transition: "color 0.15s" }}>Tokens</span>
@@ -515,7 +518,17 @@ export default function FleepitApp({ onHome, onNavAlerts, onNavDocs }) {
             </p>
 
             <div style={{ marginBottom: 18 }}>
-              <SearchBox placeholder="Ask anything about Mantle...  e.g. top 5 tokens today, best yield, compare pools" />
+              <SearchBox
+                placeholder="Ask anything about Mantle...  e.g. top 5 tokens today, best yield, compare pools"
+                value={inputValue}
+                onChange={setInputValue}
+                onSubmit={submitQuery}
+                voiceSupported={voiceSupported}
+                listening={listening}
+                onToggleVoice={toggleVoice}
+                voiceIconColor={voiceIconColor}
+                disabled={!hasKey}
+              />
             </div>
 
             {!hasKey && (
@@ -638,7 +651,17 @@ export default function FleepitApp({ onHome, onNavAlerts, onNavDocs }) {
             )}
 
             <div className="fleepit-followup-sticky">
-              <SearchBox placeholder="Ask a follow-up question..." />
+              <SearchBox
+                placeholder="Ask a follow-up question..."
+                value={inputValue}
+                onChange={setInputValue}
+                onSubmit={submitQuery}
+                voiceSupported={voiceSupported}
+                listening={listening}
+                onToggleVoice={toggleVoice}
+                voiceIconColor={voiceIconColor}
+                disabled={!hasKey}
+              />
             </div>
           </div>
         )}
