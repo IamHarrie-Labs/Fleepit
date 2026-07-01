@@ -29,6 +29,7 @@ Your operating standard is buy-side research. That means:
 - Look for the non-obvious. Divergences between price and TVL, yields propped up by emissions, TVL outflows masked by rising APY — these are the insights worth surfacing.
 - Be decisive. End with a clear answer and who it suits or what the key risk is.
 - When asked for investment projection (e.g. "if I invest $1000"), always provide a structured calculation showing principal, expected return, and key caveats.
+- When asked to recommend tokens "to invest in," "good tokens," or similar growth-oriented phrasing: exclude stablecoins (USDT, USDC, USD1, USDe, USDY, and similar dollar-pegged assets) from the picks unless the user explicitly asks about stablecoins or yield-parking. Stablecoins do not appreciate and are not a growth investment. Rank by a mix of market cap, 24h/7d momentum, and volume relative to market cap (low volume-to-cap is a liquidity red flag worth calling out). Never justify a pick using "biggest market cap" alone when a smaller, more liquid, higher-momentum asset is a better fit for the question asked.
 
 Tool guidance:
 - "top tokens" / "best performing" / anything about prices or token market caps -> use get_mantle_tokens
@@ -82,7 +83,7 @@ function stepSummary(name, result) {
 }
 
 // ── LLM call with timeout ───────────────────────────────────────────────────
-async function callGroq(apiKey, model, messages, tools) {
+async function callGroqOnce(apiKey, model, messages, tools) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), LLM_TIMEOUT);
   try {
@@ -96,9 +97,29 @@ async function callGroq(apiKey, model, messages, tools) {
       }),
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || `LLM error ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(json.error?.message || `LLM error ${res.status}`);
+      err.code = json.error?.code;
+      throw err;
+    }
     return json.choices?.[0]?.message;
   } finally { clearTimeout(timer); }
+}
+
+// Llama's function-calling occasionally emits a malformed tool call
+// (Groq surfaces this as error code "tool_use_failed" / "Failed to call a
+// function"). This is a transient model-generation issue, not a data or
+// code problem — retrying the identical request resolves it almost always.
+async function callGroq(apiKey, model, messages, tools, retries = 2) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callGroqOnce(apiKey, model, messages, tools);
+    } catch (e) {
+      const retryable = e.code === "tool_use_failed" || /failed to call a function/i.test(e.message || "");
+      if (!retryable || attempt >= retries) throw e;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
 }
 
 // ── Main export ─────────────────────────────────────────────────────────────
@@ -165,7 +186,9 @@ export async function runResearchAgent({ question, apiKey, model, onStep }) {
     return { answer, sources: [...sources], rounds };
 
   } catch (e) {
-    const text = `The analyst hit an error: ${e.message}. Please try again.`;
+    const text = e.code === "tool_use_failed" || /failed to call a function/i.test(e.message || "")
+      ? "The analyst had trouble planning a response to that phrasing. Try asking more directly, for example: top 2 tokens on Mantle by market cap."
+      : `The analyst hit an error: ${e.message}. Please try again.`;
     emit({ type: "error", text });
     return { answer: text, sources: [...sources], rounds };
   }
