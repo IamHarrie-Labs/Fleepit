@@ -78,6 +78,22 @@ function slimPool(p) {
     predictedClass: p.predictions?.predictedClass ?? null,
   };
 }
+// Deterministic stablecoin detection — filtering happens in code, not by
+// asking the LLM nicely in a prompt, since prompt-only filtering is
+// unreliable when the underlying data is majority stablecoins.
+const STABLECOIN_SYMBOLS = new Set([
+  "usdt", "usdc", "dai", "busd", "usd1", "usde", "usdt0", "usdy", "susde",
+  "tusd", "fdusd", "usdd", "gusd", "usdp", "lusd", "frax", "gho", "usds",
+  "pyusd", "usda", "usdx", "usr", "usde0",
+]);
+function isStablecoin(t) {
+  const sym = (t.symbol || "").toLowerCase();
+  if (STABLECOIN_SYMBOLS.has(sym)) return true;
+  const nearDollar = t.current_price >= 0.97 && t.current_price <= 1.03;
+  const looksStable = /usd/i.test(t.symbol || "") || /usd/i.test(t.name || "");
+  return nearDollar && looksStable;
+}
+
 function findPools(pools, q) {
   const term = (q || "").toLowerCase().trim();
   if (!term) return [];
@@ -105,7 +121,7 @@ export const toolSchemas = [
     function: {
       name: "get_mantle_tokens",
       description:
-        "Get top tokens in the Mantle ecosystem by market cap, price, 24h/7d performance, and trading volume. Use for: 'top tokens on Mantle', 'best performing tokens', 'which tokens are up/down', 'compare token prices'. Returns live data from CoinGecko.",
+        "Get top tokens in the Mantle ecosystem by market cap, price, 24h/7d performance, and trading volume. Use for: 'top tokens on Mantle', 'best performing tokens', 'which tokens are up/down', 'compare token prices'. Returns live data from CoinGecko. By default this EXCLUDES dollar-pegged stablecoins (USDT, USDC, USD1, USDe, USDY, sUSDe, etc.) because they do not appreciate and are not growth/investment assets — only set include_stablecoins to true if the user explicitly asks about stablecoins, dollar-pegged assets, or parking cash.",
       parameters: {
         type: "object",
         properties: {
@@ -115,6 +131,10 @@ export const toolSchemas = [
             description: "Sort order. Default: market_cap.",
           },
           limit: { type: "number", description: "How many to return (default 8, max 20)." },
+          include_stablecoins: {
+            type: "boolean",
+            description: "Set true ONLY if the user explicitly asked about stablecoins or dollar-pegged assets. Default false (excluded).",
+          },
         },
       },
     },
@@ -247,6 +267,8 @@ export const toolExecutors = {
     const data = await res.json();
     const limit = Math.min(args.limit ?? 8, 20);
 
+    const pool = args.include_stablecoins ? data : data.filter(t => !isStablecoin(t));
+
     const sortKey = {
       price_change_24h: "price_change_percentage_24h",
       price_change_7d: "price_change_percentage_7d_in_currency",
@@ -254,12 +276,13 @@ export const toolExecutors = {
       market_cap: "market_cap",
     }[args.sort_by || "market_cap"] || "market_cap";
 
-    const sorted = [...data].sort((a, b) => (b[sortKey] ?? -Infinity) - (a[sortKey] ?? -Infinity));
+    const sorted = [...pool].sort((a, b) => (b[sortKey] ?? -Infinity) - (a[sortKey] ?? -Infinity));
 
     return {
       count: sorted.length,
       returned: Math.min(limit, sorted.length),
       sort_by: args.sort_by || "market_cap",
+      stablecoins_excluded: !args.include_stablecoins,
       tokens: sorted.slice(0, limit).map(t => ({
         id: t.id,
         name: t.name,
@@ -273,6 +296,7 @@ export const toolExecutors = {
         change_7d_pct: round(t.price_change_percentage_7d_in_currency),
         ath_usd: t.ath,
         ath_change_pct: round(t.ath_change_percentage),
+        is_stablecoin: isStablecoin(t),
       })),
       source: "CoinGecko (category: mantle-ecosystem)",
     };

@@ -83,7 +83,7 @@ function stepSummary(name, result) {
 }
 
 // ── LLM call with timeout ───────────────────────────────────────────────────
-async function callGroqOnce(apiKey, model, messages, tools) {
+async function callGroqOnce(apiKey, model, messages, tools, temperature) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), LLM_TIMEOUT);
   try {
@@ -93,30 +93,61 @@ async function callGroqOnce(apiKey, model, messages, tools) {
       body: JSON.stringify({
         model, messages,
         ...(tools ? { tools, tool_choice: "auto" } : {}),
-        temperature: 0.3, max_tokens: 1000,
+        temperature, max_tokens: 1000,
       }),
     });
     const json = await res.json();
     if (!res.ok) {
       const err = new Error(json.error?.message || `LLM error ${res.status}`);
       err.code = json.error?.code;
+      err.failedGeneration = json.error?.failed_generation;
       throw err;
     }
     return json.choices?.[0]?.message;
   } finally { clearTimeout(timer); }
 }
 
-// Llama's function-calling occasionally emits a malformed tool call
-// (Groq surfaces this as error code "tool_use_failed" / "Failed to call a
-// function"). This is a transient model-generation issue, not a data or
-// code problem — retrying the identical request resolves it almost always.
+// Llama on Groq occasionally emits a malformed pseudo-tag tool call instead
+// of a proper structured one, e.g.:
+//   <function=get_mantle_tokens {"limit": 3}</function>
+// Groq rejects this as error code "tool_use_failed" but conveniently echoes
+// back exactly what the model tried to call in `failed_generation`. Recover
+// it directly rather than discarding a perfectly good intended call.
+function recoverToolCall(failedGeneration) {
+  if (!failedGeneration) return null;
+  const match = failedGeneration.match(/<function=([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})\s*<\/?function>?/);
+  if (!match) return null;
+  try {
+    const name = match[1];
+    const args = JSON.parse(match[2]);
+    return {
+      role: "assistant",
+      content: null,
+      tool_calls: [{ id: `recovered_${Date.now()}`, type: "function", function: { name, arguments: JSON.stringify(args) } }],
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Retries a failed tool-calling request. First tries to recover the
+// intended call from Groq's failed_generation payload (works immediately,
+// no wasted request); falls back to retrying with a nudged temperature so
+// a deterministic-ish failure doesn't just repeat itself identically.
 async function callGroq(apiKey, model, messages, tools, retries = 2) {
+  let temperature = 0.3;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await callGroqOnce(apiKey, model, messages, tools);
+      return await callGroqOnce(apiKey, model, messages, tools, temperature);
     } catch (e) {
       const retryable = e.code === "tool_use_failed" || /failed to call a function/i.test(e.message || "");
-      if (!retryable || attempt >= retries) throw e;
+      if (!retryable) throw e;
+
+      const recovered = recoverToolCall(e.failedGeneration);
+      if (recovered) return recovered;
+
+      if (attempt >= retries) throw e;
+      temperature = Math.min(temperature + 0.25, 0.9);
       await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
     }
   }
