@@ -263,10 +263,10 @@ export default function Landing({ onLaunch }) {
             <video autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}>
               <source src={USECASE_VIDEO} type="video/mp4" />
             </video>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%)", zIndex: 1 }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,0.15) 75%, transparent 100%)", zIndex: 1 }} />
             <div style={{ position: "relative", zIndex: 10, padding: "40px 28px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-              <h3 style={{ fontSize: "clamp(28px, 3.2vw, 48px)", fontWeight: 600, letterSpacing: "-0.032em", color: "white", lineHeight: 1.1, marginBottom: 14 }}>DeFi Investor.</h3>
-              <p style={{ fontSize: 15, color: "rgba(255,255,255,0.68)", maxWidth: 380, lineHeight: 1.65, marginBottom: 28, fontWeight: 400 }}>
+              <h3 style={{ fontSize: "clamp(28px, 3.2vw, 48px)", fontWeight: 600, letterSpacing: "-0.032em", color: "white", lineHeight: 1.1, marginBottom: 14, textShadow: "0 2px 12px rgba(0,0,0,0.35)" }}>DeFi Investor.</h3>
+              <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", maxWidth: 380, lineHeight: 1.65, marginBottom: 28, fontWeight: 400, textShadow: "0 1px 8px rgba(0,0,0,0.3)" }}>
                 Find the highest sustainable yield, model an investment scenario, and get a sourced recommendation before you deploy a single dollar, all in one question.
               </p>
               <button onClick={onLaunch} style={{ display: "inline-flex", alignItems: "center", gap: 12, color: "white", fontSize: 15, fontWeight: 500, cursor: "pointer", background: "none", border: "none", width: "fit-content", padding: 0 }}>
