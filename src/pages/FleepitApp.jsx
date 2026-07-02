@@ -394,6 +394,9 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
   const [briefCards, setBriefCards] = useState([]);
   const [briefLoading, setBriefLoading] = useState(true);
   const [listening, setListening] = useState(false);
+  const [history, setHistory] = useState([]); // { question, answer }[], most recent last
+  const historyRef = useRef([]);
+  useEffect(() => { historyRef.current = history; }, [history]);
   const recRef = useRef(null);
   const transcriptRef = useRef("");
   const hasKey = !!GROQ_API_KEY;
@@ -471,6 +474,8 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
   }, []);
 
   // ── Research ──────────────────────────────────────────────────────────
+  const CONVERSATIONAL_SHELL = { title: "Fleepit Analyst", meta: "Ready when you are", summaryCards: [], tableHeaders: [], tableRows: [], tableGridCols: "", chartData: null };
+
   const research = useCallback(async (query) => {
     const q = query.trim();
     if (!q) return;
@@ -479,10 +484,13 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
     setInputValue("");
     const liveSteps = [];
     setSteps([]);
+    setResult(null);
 
     const collected = [];
+    let enteredResults = false;
+
     const { answer, sources, conversational } = await runResearchAgent({
-      question: q, apiKey: GROQ_API_KEY,
+      question: q, apiKey: GROQ_API_KEY, history: historyRef.current,
       onStep: (s) => {
         if (s.type === "tool_call") {
           if (liveSteps.length) liveSteps[liveSteps.length - 1].status = "done";
@@ -492,22 +500,25 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
           if (liveSteps.length) liveSteps[liveSteps.length - 1].detail = s.summary || "Done";
           collected.push({ name: s.name, result: s.result });
           setSteps([...liveSteps]);
-        } else if (s.type === "final") {
-          if (liveSteps.length) liveSteps[liveSteps.length - 1].status = "done";
-          liveSteps.push({ title: "Generating research analysis", detail: "AI analyst reviewing live findings", status: "done" });
-          setSteps([...liveSteps]);
+        } else if (s.type === "stream") {
+          // Render progressively as tokens arrive instead of waiting for
+          // the whole answer: flip into the results view on the very
+          // first chunk, using whatever tool data is already collected.
+          const base = collected.length ? formatResults(collected, q) : CONVERSATIONAL_SHELL;
+          setResult({ ...base, analysis: s.text, sources: [], streaming: true });
+          if (!enteredResults) { enteredResults = true; setMode("results"); }
         }
       },
     });
 
-    const formatted = conversational
-      ? { title: "Fleepit Analyst", meta: "Ready when you are", summaryCards: [], tableHeaders: [], tableRows: [], tableGridCols: "", chartData: null }
-      : formatResults(collected, q);
-    setResult({ ...formatted, analysis: answer, sources: sources.length ? sources : ["Fleepit Research Agent"] });
+    const formatted = conversational ? CONVERSATIONAL_SHELL : formatResults(collected, q);
+    setResult({ ...formatted, analysis: answer, sources: sources.length ? sources : ["Fleepit Research Agent"], streaming: false });
     setMode("results");
+
+    setHistory((h) => [...h, { question: q, answer }].slice(-6));
   }, []);
 
-  const goHome = () => { setMode("home"); setInputValue(""); setCurrentQuery(""); setSteps([]); setResult(null); };
+  const goHome = () => { setMode("home"); setInputValue(""); setCurrentQuery(""); setSteps([]); setResult(null); setHistory([]); };
   const submitQuery = () => research(inputValue);
 
   const toggleVoice = () => {
@@ -684,7 +695,10 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Research Analysis</span>
                 </div>
-                <div style={{ fontSize: 15, lineHeight: 1.82, color: "rgba(255,255,255,0.82)", whiteSpace: "pre-wrap", fontWeight: 400 }}>{cleanAnalysis(r.analysis)}</div>
+                <div style={{ fontSize: 15, lineHeight: 1.82, color: "rgba(255,255,255,0.82)", whiteSpace: "pre-wrap", fontWeight: 400 }}>
+                  {cleanAnalysis(r.analysis)}
+                  {r.streaming && <span style={{ display: "inline-block", width: 7, height: 15, background: "rgba(255,255,255,0.6)", marginLeft: 2, verticalAlign: "text-bottom", animation: "fleepit-pulse 0.9s ease-in-out infinite" }} />}
+                </div>
               </div>
             )}
 

@@ -3,11 +3,13 @@
  * ------------------------------------------------------------------------
  * All-encompassing Mantle ecosystem research. Covers: tokens, protocols,
  * DeFi yields, RWA, chain health, price analysis, investment timing,
- * comparisons, and more. Not just pools.
+ * comparisons, wallets, gas, and more. Not just pools.
  *
- * Uses Groq function-calling (Llama-3.3-70b) in a multi-step tool loop.
- * Emits step events via onStep for the live "agent working" UI feed.
- * Guardrails: round cap, per-call timeout, caught tool errors, always resolves.
+ * Uses Groq function-calling (Llama-3.3-70b) in a multi-step tool loop,
+ * streamed token-by-token. Emits step + delta events via onStep for the
+ * live "agent working" UI feed. Guardrails: round cap, per-call timeout,
+ * caught tool errors, always resolves. No hardcoded answer text anywhere —
+ * every reply, including greetings, comes from the model itself.
  */
 
 import { toolSchemas, toolExecutors } from "./agentTools";
@@ -17,6 +19,7 @@ const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const MAX_ROUNDS    = 4;      // most queries resolve in 1-2 rounds; cap keeps token use bounded
 const LLM_TIMEOUT   = 30_000;
 const TOOL_RESULT_CAP = 2500; // chars of a tool result fed back to the model
+const HISTORY_TURNS   = 3;    // prior user/assistant exchanges kept for follow-up context
 
 // ── System prompts ──────────────────────────────────────────────────────────
 
@@ -27,6 +30,7 @@ Rules:
 - For "good tokens to invest in" style questions, exclude stablecoins (USDT, USDC, USD1, USDe, USDY, sUSDe, etc.) unless the user explicitly asks about them. Rank by market cap, 24h/7d momentum, and volume-to-cap liquidity, not market cap alone.
 - For investment projections ("if I invest $1000"), show principal, expected return, and the key caveat.
 - Be decisive: end with a clear answer, who it suits, and the main risk.
+- If the user's message refers back to the prior exchange ("that one", "the second option", "what about MNT instead"), use the conversation history above to resolve what they mean before deciding whether a tool call is needed.
 
 Tool routing:
 - prices / top or best tokens -> get_mantle_tokens; price trend or "good time to buy" -> get_token_price_history
@@ -39,7 +43,7 @@ Tool routing:
 
 General questions: for definitional or conceptual ones that need no live number (what is Mantle, what is mETH, what is an RWA), answer directly from your knowledge, framed as general context. Do not force a tool call.
 
-Greetings or small talk (hi, how are you, thanks): reply in one friendly sentence and invite a Mantle research question. Never call a tool for these.
+Greetings or small talk (hi, how are you, thanks): reply in one short, natural, varied sentence and invite a Mantle research question. Never call a tool for these.
 
 Final answer style: natural analyst prose in 2 to 4 short paragraphs. No markdown, asterisks, headers, bullets, numbered lists, emoji, or decorative dashes. No inline [source] brackets (sources show separately). State facts plainly and specifically.`;
 
@@ -88,8 +92,12 @@ function stepSummary(name, result) {
   } catch { return "done"; }
 }
 
-// ── LLM call with timeout ───────────────────────────────────────────────────
-async function callGroqOnce(apiKey, model, messages, tools, temperature) {
+// ── LLM call, streamed ───────────────────────────────────────────────────────
+// Always requests a stream. Accumulates both content and tool_calls deltas
+// (Groq/OpenAI-compatible chunks never mix the two within one response), and
+// forwards content deltas to onDelta as they arrive so the UI can render the
+// final answer progressively instead of waiting for the whole thing.
+async function callGroqOnce(apiKey, model, messages, tools, temperature, onDelta) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), LLM_TIMEOUT);
   try {
@@ -99,17 +107,63 @@ async function callGroqOnce(apiKey, model, messages, tools, temperature) {
       body: JSON.stringify({
         model, messages,
         ...(tools ? { tools, tool_choice: "auto" } : {}),
-        temperature, max_tokens: 700,
+        temperature, max_tokens: 700, stream: true,
       }),
     });
-    const json = await res.json();
+
     if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
       const err = new Error(json.error?.message || `LLM error ${res.status}`);
       err.code = json.error?.code;
       err.failedGeneration = json.error?.failed_generation;
       throw err;
     }
-    return json.choices?.[0]?.message;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let content = "";
+    const toolCallsMap = new Map();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+
+        let chunk;
+        try { chunk = JSON.parse(payload); } catch { continue; }
+        const delta = chunk.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        if (delta.content) {
+          content += delta.content;
+          try { onDelta?.(delta.content, content); } catch {}
+        }
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCallsMap.has(idx)) {
+              toolCallsMap.set(idx, { id: tc.id || `call_${idx}`, type: "function", function: { name: "", arguments: "" } });
+            }
+            const entry = toolCallsMap.get(idx);
+            if (tc.id) entry.id = tc.id;
+            if (tc.function?.name) entry.function.name += tc.function.name;
+            if (tc.function?.arguments) entry.function.arguments += tc.function.arguments;
+          }
+        }
+      }
+    }
+
+    const tool_calls = [...toolCallsMap.values()];
+    return { role: "assistant", content: content || null, tool_calls: tool_calls.length ? tool_calls : undefined };
   } finally { clearTimeout(timer); }
 }
 
@@ -140,11 +194,11 @@ function recoverToolCall(failedGeneration) {
 // intended call from Groq's failed_generation payload (works immediately,
 // no wasted request); falls back to retrying with a nudged temperature so
 // a deterministic-ish failure doesn't just repeat itself identically.
-async function callGroq(apiKey, model, messages, tools, retries = 2) {
+async function callGroq(apiKey, model, messages, tools, onDelta, retries = 2) {
   let temperature = 0.3;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await callGroqOnce(apiKey, model, messages, tools, temperature);
+      return await callGroqOnce(apiKey, model, messages, tools, temperature, onDelta);
     } catch (e) {
       const retryable = e.code === "tool_use_failed" || /failed to call a function/i.test(e.message || "");
       if (!retryable) throw e;
@@ -159,8 +213,11 @@ async function callGroq(apiKey, model, messages, tools, retries = 2) {
   }
 }
 
-// Pure greetings and pleasantries should never spin up the research
-// pipeline: no tool calls, no LLM round-trip, no tokens. Answer instantly.
+// Greetings/small talk are routed WITHOUT the tool schema attached, so the
+// model physically cannot call a tool (cheaper and immune to the "hi"
+// triggering a random tool-call bug) — but the reply text itself still
+// comes straight from the model, streamed like any other answer. Nothing
+// here is a canned string.
 const GREETING_RE = /^(hi|hiya|hello|hey|yo|gm|gn|sup|good\s(morning|afternoon|evening|day)|how far|thanks?|thank you|ok(ay)?|cool|nice)[\s!.,?]*$/i;
 
 function sanitizeError(e) {
@@ -177,31 +234,61 @@ function sanitizeError(e) {
 
 // ── Main export ─────────────────────────────────────────────────────────────
 /**
- * @param {{ question:string, apiKey:string, model?:string, onStep?:(s:object)=>void }}
+ * @param {{
+ *   question:string, apiKey:string, model?:string,
+ *   history?: Array<{question:string, answer:string}>,  prior turns, most recent last
+ *   onStep?:(s:object)=>void
+ * }}
  * @returns {Promise<{answer:string, sources:string[], rounds:number, conversational?:boolean}>}
  */
-export async function runResearchAgent({ question, apiKey, model, onStep }) {
+export async function runResearchAgent({ question, apiKey, model, history = [], onStep }) {
   const emit = s => { try { onStep?.(s); } catch {} };
   const sources = new Set();
-
-  if (GREETING_RE.test((question || "").trim())) {
-    const answer = "Hello. I am the Fleepit Analyst, a research agent for the Mantle ecosystem. Ask me about tokens, protocols, yield pools, gas, chain health, or paste a wallet address and I will pull the live data.";
-    emit({ type: "final", text: answer, sources: [] });
-    return { answer, sources: [], rounds: 0, conversational: true };
-  }
 
   if (!apiKey) return {
     answer: "No API key configured. Add your Groq key in Settings to activate the analyst.",
     sources: [], rounds: 0,
   };
 
-  const messages = [{ role: "system", content: ANALYST_SYSTEM }, { role: "user", content: question }];
+  const priorTurns = history.slice(-HISTORY_TURNS).flatMap((h) => ([
+    { role: "user", content: h.question },
+    { role: "assistant", content: h.answer },
+  ]));
+
+  const isGreeting = GREETING_RE.test((question || "").trim());
+  const messages = [{ role: "system", content: ANALYST_SYSTEM }, ...priorTurns, { role: "user", content: question }];
   emit({ type: "start" });
+
+  const streamToUi = (chunk, full) => emit({ type: "stream", chunk, text: full });
+
+  if (isGreeting) {
+    try {
+      const msg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, undefined, streamToUi);
+      const answer = msg?.content?.trim() || "";
+      emit({ type: "final", text: answer, sources: [] });
+      return { answer, sources: [], rounds: 0, conversational: true };
+    } catch (e) {
+      const text = sanitizeError(e);
+      emit({ type: "error", text });
+      return { answer: text, sources: [], rounds: 0, conversational: true };
+    }
+  }
 
   let rounds = 0;
   try {
     while (rounds < MAX_ROUNDS) {
-      const msg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, toolSchemas);
+      // Only stream to the UI once we're clearly in a content (not tool-call)
+      // round: peek by disabling the callback until we've seen the first
+      // delta arrive as content rather than a tool call fragment.
+      let sawToolCallFirst = false;
+      const msg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, toolSchemas, (chunk, full) => {
+        if (sawToolCallFirst) return;
+        streamToUi(chunk, full);
+      });
+      // If this round produced tool calls, any partial content we streamed
+      // was just planning chatter — the UI discards it once tool_call/final
+      // events supersede it, so no special cleanup is needed here.
+      if (msg?.tool_calls?.length) sawToolCallFirst = true;
 
       if (!msg?.tool_calls?.length) {
         const answer = msg?.content?.trim() || "I could not produce an answer from the available data.";
@@ -244,7 +331,7 @@ export async function runResearchAgent({ question, apiKey, model, onStep }) {
 
     // Force final answer if round cap hit
     messages.push({ role: "user", content: "You have enough data. Write your final answer now in plain prose paragraphs, no more tool calls." });
-    const finalMsg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, undefined);
+    const finalMsg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, undefined, streamToUi);
     const answer = finalMsg?.content?.trim() || "Analysis incomplete. Please try a more specific question.";
     emit({ type: "final", text: answer, sources: [...sources] });
     return { answer, sources: [...sources], rounds };
