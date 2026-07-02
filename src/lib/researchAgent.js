@@ -18,6 +18,32 @@ const GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const MAX_ROUNDS    = 4;      // most queries resolve in 1-2 rounds; cap keeps token use bounded
 const LLM_TIMEOUT   = 30_000;
+
+// ── Tool-schema trimming ─────────────────────────────────────────────────────
+// The full tool schema JSON (~12 tools with param descriptions) is resent on
+// every single round of the loop, so it dominates token use on multi-round
+// queries. A cheap keyword pre-router narrows the set to what the question
+// plausibly needs instead of always sending everything. Errs toward
+// over-inclusion for ambiguous cases -- this trims the clearly-irrelevant
+// tail (wallet lookups, price history, pool drilldown), it doesn't try to
+// be surgically minimal.
+const CORE_TOOLS = ["get_mantle_tokens", "get_mantle_protocols", "list_mantle_pools", "get_mantle_chain_metrics"];
+const KEYWORD_TOOLS = [
+  { re: /0x[a-fA-F0-9]{40}|\bwallet\b|\baddress\b|\bholdings?\b|\btransactions?\b/i, tools: ["get_wallet_overview", "get_wallet_tokens", "get_address_transactions"] },
+  { re: /\bgas\b|\bblock(number)?\b|how busy|congestion|network (status|state|activity|load)/i, tools: ["get_gas_network"] },
+  { re: /trend|history|chart|good time to (buy|sell)|momentum over|last (week|month)/i, tools: ["get_token_price_history"] },
+  { re: /sustainable|apy (trend|history|stable)|is this yield|pool history|been (stable|volatile)/i, tools: ["get_pool_details", "get_pool_history"] },
+  { re: /\bcompare\b|\bvs\.?\b|\bversus\b|better than|which (one|is better)/i, tools: ["compare_assets"] },
+];
+
+function selectToolSchemas(question) {
+  const q = question || "";
+  const names = new Set(CORE_TOOLS);
+  for (const { re, tools } of KEYWORD_TOOLS) {
+    if (re.test(q)) tools.forEach((t) => names.add(t));
+  }
+  return toolSchemas.filter((s) => names.has(s.function.name));
+}
 const TOOL_RESULT_CAP = 2500; // chars of a tool result fed back to the model
 const HISTORY_TURNS   = 3;    // prior user/assistant exchanges kept for follow-up context
 
@@ -274,6 +300,8 @@ export async function runResearchAgent({ question, apiKey, model, history = [], 
     }
   }
 
+  const scopedTools = selectToolSchemas(question);
+
   let rounds = 0;
   try {
     while (rounds < MAX_ROUNDS) {
@@ -281,7 +309,7 @@ export async function runResearchAgent({ question, apiKey, model, history = [], 
       // round: peek by disabling the callback until we've seen the first
       // delta arrive as content rather than a tool call fragment.
       let sawToolCallFirst = false;
-      const msg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, toolSchemas, (chunk, full) => {
+      const msg = await callGroq(apiKey, model || DEFAULT_MODEL, messages, scopedTools, (chunk, full) => {
         if (sawToolCallFirst) return;
         streamToUi(chunk, full);
       });
