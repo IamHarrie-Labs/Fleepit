@@ -187,6 +187,11 @@ export async function runResearchAgent({ question, apiKey, model, onStep }) {
         const name = call.function?.name;
         let args = {};
         try { args = JSON.parse(call.function?.arguments || "{}"); } catch {}
+        // Groq/Llama sometimes emits the literal string "null" as the
+        // arguments payload (e.g. when a tool needs no params). That's
+        // valid JSON that parses to the JS value null, not {} — every
+        // executor below expects an object, so normalize it here once.
+        if (!args || typeof args !== "object" || Array.isArray(args)) args = {};
 
         emit({ type: "tool_call", name, label: stepLabel(name, args), args });
 
