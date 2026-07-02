@@ -54,6 +54,12 @@ function MenuIcon({ open }) {
 export default function Landing({ onLaunch }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Smooth-scroll to a section without touching the URL (no #hash in the bar).
+  const scrollToSection = (id) => (e) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   useEffect(() => {
     const style = document.createElement("style");
     style.textContent = `
@@ -114,10 +120,10 @@ export default function Landing({ onLaunch }) {
             <FleepitLogo variant="light" size="md" />
           </div>
           <div className="fleepit-nav-desktop" style={{ alignItems: "center", gap: 36 }}>
-            <a href="#research" className="fleepit-nav-link">Research</a>
-            <a href="#capabilities" className="fleepit-nav-link">Capabilities</a>
-            <a href="#usecases" className="fleepit-nav-link">Use Cases</a>
-            <a href="#ecosystem" className="fleepit-nav-link">Ecosystem</a>
+            <a href="#" onClick={scrollToSection("research")} className="fleepit-nav-link">Research</a>
+            <a href="#" onClick={scrollToSection("capabilities")} className="fleepit-nav-link">Capabilities</a>
+            <a href="#" onClick={scrollToSection("usecases")} className="fleepit-nav-link">Use Cases</a>
+            <a href="#" onClick={scrollToSection("ecosystem")} className="fleepit-nav-link">Ecosystem</a>
           </div>
           <button onClick={onLaunch} className="fleepit-nav-desktop fleepit-hero-btn" style={{ alignItems: "center", background: "#0A0A0A", color: "white", fontSize: 14, fontWeight: 500, padding: "10px 26px", borderRadius: 9999, cursor: "pointer", border: "none", letterSpacing: "-0.01em", transition: "background 0.2s" }}>
             Launch App
@@ -135,12 +141,19 @@ export default function Landing({ onLaunch }) {
         {menuOpen && (
           <div style={{ position: "absolute", top: 68, left: 16, right: 16, zIndex: 30, background: "white", borderRadius: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.15)", padding: "8px 20px 20px", display: "flex", flexDirection: "column" }}>
             {[
-              { href: "#research", label: "Research" },
-              { href: "#capabilities", label: "Capabilities" },
-              { href: "#usecases", label: "Use Cases" },
-              { href: "#ecosystem", label: "Ecosystem" },
+              { id: "research", label: "Research" },
+              { id: "capabilities", label: "Capabilities" },
+              { id: "usecases", label: "Use Cases" },
+              { id: "ecosystem", label: "Ecosystem" },
             ].map((l) => (
-              <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)} style={{ padding: "14px 4px", fontSize: 15, fontWeight: 500, color: "#3A3A3A", textDecoration: "none", borderTop: "1px solid rgba(0,0,0,0.06)" }}>{l.label}</a>
+              <a
+                key={l.id}
+                href="#"
+                onClick={(e) => { setMenuOpen(false); scrollToSection(l.id)(e); }}
+                style={{ padding: "14px 4px", fontSize: 15, fontWeight: 500, color: "#3A3A3A", textDecoration: "none", borderTop: "1px solid rgba(0,0,0,0.06)" }}
+              >
+                {l.label}
+              </a>
             ))}
             <button onClick={() => { setMenuOpen(false); onLaunch(); }} style={{ marginTop: 12, background: "#0A0A0A", color: "white", fontSize: 14, fontWeight: 500, padding: "12px 22px", borderRadius: 9999, border: "none", cursor: "pointer" }}>
               Launch App
