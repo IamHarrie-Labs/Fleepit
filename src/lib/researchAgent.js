@@ -39,6 +39,8 @@ Tool routing:
 
 General questions: for definitional or conceptual ones that need no live number (what is Mantle, what is mETH, what is an RWA), answer directly from your knowledge, framed as general context. Do not force a tool call.
 
+Greetings or small talk (hi, how are you, thanks): reply in one friendly sentence and invite a Mantle research question. Never call a tool for these.
+
 Final answer style: natural analyst prose in 2 to 4 short paragraphs. No markdown, asterisks, headers, bullets, numbered lists, emoji, or decorative dashes. No inline [source] brackets (sources show separately). State facts plainly and specifically.`;
 
 // ── Step label helpers ──────────────────────────────────────────────────────
@@ -157,14 +159,36 @@ async function callGroq(apiKey, model, messages, tools, retries = 2) {
   }
 }
 
+// Pure greetings and pleasantries should never spin up the research
+// pipeline: no tool calls, no LLM round-trip, no tokens. Answer instantly.
+const GREETING_RE = /^(hi|hiya|hello|hey|yo|gm|gn|sup|good\s(morning|afternoon|evening|day)|how far|thanks?|thank you|ok(ay)?|cool|nice)[\s!.,?]*$/i;
+
+function sanitizeError(e) {
+  const msg = e?.message || "";
+  if (/rate limit/i.test(msg)) {
+    const wait = msg.match(/try again in ([\dhms.\s]+?)[.,]/i)?.[1]?.trim();
+    return `The analyst is temporarily rate limited on its AI provider. Please try again${wait ? ` in about ${wait}` : " in a few minutes"}.`;
+  }
+  if (/failed to call a function/i.test(msg) || e?.code === "tool_use_failed") {
+    return "The analyst had trouble planning a response to that phrasing. Try asking more directly, for example: top 2 tokens on Mantle by market cap.";
+  }
+  return `The analyst hit an error: ${msg}. Please try again.`;
+}
+
 // ── Main export ─────────────────────────────────────────────────────────────
 /**
  * @param {{ question:string, apiKey:string, model?:string, onStep?:(s:object)=>void }}
- * @returns {Promise<{answer:string, sources:string[], rounds:number}>}
+ * @returns {Promise<{answer:string, sources:string[], rounds:number, conversational?:boolean}>}
  */
 export async function runResearchAgent({ question, apiKey, model, onStep }) {
   const emit = s => { try { onStep?.(s); } catch {} };
   const sources = new Set();
+
+  if (GREETING_RE.test((question || "").trim())) {
+    const answer = "Hello. I am the Fleepit Analyst, a research agent for the Mantle ecosystem. Ask me about tokens, protocols, yield pools, gas, chain health, or paste a wallet address and I will pull the live data.";
+    emit({ type: "final", text: answer, sources: [] });
+    return { answer, sources: [], rounds: 0, conversational: true };
+  }
 
   if (!apiKey) return {
     answer: "No API key configured. Add your Groq key in Settings to activate the analyst.",
@@ -226,9 +250,7 @@ export async function runResearchAgent({ question, apiKey, model, onStep }) {
     return { answer, sources: [...sources], rounds };
 
   } catch (e) {
-    const text = e.code === "tool_use_failed" || /failed to call a function/i.test(e.message || "")
-      ? "The analyst had trouble planning a response to that phrasing. Try asking more directly, for example: top 2 tokens on Mantle by market cap."
-      : `The analyst hit an error: ${e.message}. Please try again.`;
+    const text = sanitizeError(e);
     emit({ type: "error", text });
     return { answer: text, sources: [...sources], rounds };
   }

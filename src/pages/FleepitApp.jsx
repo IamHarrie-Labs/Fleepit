@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { runResearchAgent } from "../lib/researchAgent";
 import { toolExecutors, fmtUsd } from "../lib/agentTools";
-import { GEMINI_API_KEY } from "../config";
+import { GROQ_API_KEY } from "../config";
 import AppNav from "../components/layout/AppNav";
 
 // ── Palette (from Fleepit.dc.html) ──────────────────────────────────────────
@@ -396,7 +396,7 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
   const [listening, setListening] = useState(false);
   const recRef = useRef(null);
   const transcriptRef = useRef("");
-  const hasKey = !!GEMINI_API_KEY;
+  const hasKey = !!GROQ_API_KEY;
   const voiceSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   useEffect(() => {
@@ -481,8 +481,8 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
     setSteps([]);
 
     const collected = [];
-    const { answer, sources } = await runResearchAgent({
-      question: q, apiKey: GEMINI_API_KEY,
+    const { answer, sources, conversational } = await runResearchAgent({
+      question: q, apiKey: GROQ_API_KEY,
       onStep: (s) => {
         if (s.type === "tool_call") {
           if (liveSteps.length) liveSteps[liveSteps.length - 1].status = "done";
@@ -500,7 +500,9 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
       },
     });
 
-    const formatted = formatResults(collected, q);
+    const formatted = conversational
+      ? { title: "Fleepit Analyst", meta: "Ready when you are", summaryCards: [], tableHeaders: [], tableRows: [], tableGridCols: "", chartData: null }
+      : formatResults(collected, q);
     setResult({ ...formatted, analysis: answer, sources: sources.length ? sources : ["Fleepit Research Agent"] });
     setMode("results");
   }, []);
