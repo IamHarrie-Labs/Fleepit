@@ -37,7 +37,13 @@ Tool guidance:
 - "top pools" / "staking" / "yield farming" / "APY" -> use list_mantle_pools
 - "is it a good time to buy X" / "price trend" -> use get_token_price_history then get_mantle_chain_metrics
 - "compare X vs Y" -> use compare_assets
+- "gas price" / "how busy is Mantle" / "current block" -> use get_gas_network
+- A pasted 0x address, "what is this address", "what does this wallet hold" -> use get_wallet_overview; for its ERC-20 holdings add get_wallet_tokens; for its activity add get_address_transactions
 - Always get chain metrics for macro context on any investment-related question.
+
+General questions:
+- For definitional or conceptual questions that do not need a live number (what is Mantle, how does an L2 work, what is mETH, what is an RWA), answer directly and clearly from your own knowledge. You do not have to call a tool for these. Be accurate and concise, and make clear this is general context rather than a live on-chain reading.
+- Only refuse to answer when the question genuinely needs live data that a tool would provide but the tool returned nothing.
 
 How to write the final answer (non-negotiable):
 - Write like a knowledgeable analyst speaking to a colleague. Natural, flowing prose in short paragraphs.
@@ -58,11 +64,18 @@ const TOOL_LABELS = {
   get_pool_details: "Looking up pool",
   get_pool_history: "Reading pool history",
   compare_assets: "Comparing assets",
+  get_gas_network: "Reading Mantle gas and block",
+  get_wallet_overview: "Inspecting address on-chain",
+  get_wallet_tokens: "Fetching token holdings",
+  get_address_transactions: "Fetching transaction history",
 };
+const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
 function stepLabel(name, args) {
   if (name === "get_pool_details" && args?.query) return `Looking up ${args.query}`;
   if (name === "get_token_price_history" && args?.token_id) return `Pulling ${args.token_id} price trend`;
   if (name === "compare_assets" && args?.queries) return `Comparing ${args.queries.join(" vs ")}`;
+  if ((name === "get_wallet_overview" || name === "get_wallet_tokens" || name === "get_address_transactions") && args?.address)
+    return `${TOOL_LABELS[name]} ${shortAddr(args.address)}`;
   return TOOL_LABELS[name] || name;
 }
 function stepSummary(name, result) {
@@ -77,6 +90,10 @@ function stepSummary(name, result) {
       case "get_pool_details":     return result.matches?.length ? result.matches[0].symbol : "no match";
       case "get_pool_history":     return `${result.apy?.stability ?? "?"} yield, TVL ${result.tvl?.direction ?? "?"}`;
       case "compare_assets":       return `${result.compared} assets compared`;
+      case "get_gas_network":      return `${result.gas_price_gwei} gwei, block ${result.latest_block}`;
+      case "get_wallet_overview":  return `${result.type}, ${result.mnt_balance_formatted}`;
+      case "get_wallet_tokens":    return result.needs_key ? "needs API key" : `${result.count ?? 0} tokens`;
+      case "get_address_transactions": return result.needs_key ? "needs API key" : `${result.count ?? 0} txns`;
       default: return "done";
     }
   } catch { return "done"; }

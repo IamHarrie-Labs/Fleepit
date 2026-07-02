@@ -179,11 +179,58 @@ function formatResults(stepResults, question) {
   const chain = byName("get_mantle_chain_metrics")[0];
   const tokenHist = byName("get_token_price_history")[0];
   const poolHist = byName("get_pool_history")[0];
+  const gas = byName("get_gas_network")[0];
+  const wallet = byName("get_wallet_overview")[0];
+  const walletTokens = byName("get_wallet_tokens")[0];
+  const addrTx = byName("get_address_transactions")[0];
+
+  const shortAddr = (a) => (a && a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
 
   let title = "Research Results", meta = `Research on: "${question}"`;
   let summaryCards = [], tableHeaders = [], tableRows = [], tableGridCols = "", chartData = null;
 
-  if (tokens) {
+  if (wallet || walletTokens || addrTx) {
+    // On-chain address view — prefer overview, layer in tokens/transactions.
+    const addr = wallet?.address || walletTokens?.address || addrTx?.address;
+    title = "Address Overview";
+    meta = `Mantle address ${shortAddr(addr)}, live on-chain`;
+
+    if (wallet) {
+      summaryCards = [
+        { label: "TYPE", value: wallet.type === "contract" ? "Contract" : "Wallet", bg: "#F8F8F8", valueColor: BLACK },
+        { label: "MNT BALANCE", value: wallet.mnt_balance_formatted, bg: "#F8F8F8", valueColor: BLACK },
+        { label: "TRANSACTIONS", value: wallet.tx_count != null ? `${wallet.tx_count}` : "N/A", bg: "#F8F8F8", valueColor: BLACK },
+      ];
+    }
+
+    if (walletTokens && !walletTokens.needs_key && walletTokens.tokens?.length) {
+      tableHeaders = ["Token", "Name", "Balance"];
+      tableGridCols = "1.2fr 2fr 1.6fr";
+      tableRows = walletTokens.tokens.map((t) => [
+        cell(t.symbol, "600", BLACK),
+        cell(t.name, "400", GRAY),
+        cell(t.balance, "500", BLACK),
+      ]);
+    } else if (addrTx && !addrTx.needs_key && addrTx.transactions?.length) {
+      tableHeaders = ["Hash", "Direction", "Value (MNT)", "Age", "Status"];
+      tableGridCols = "2fr 1fr 1.3fr 1fr 1fr";
+      tableRows = addrTx.transactions.map((t) => [
+        cell(shortAddr(t.hash), "500", BLACK),
+        cell(t.direction === "out" ? "Out" : "In", "500", t.direction === "out" ? RED : GREEN),
+        cell(t.value_mnt, "400", BLACK),
+        cell(t.age, "400", GRAY),
+        cell(t.status, "500", t.status === "success" ? GREEN : RED),
+      ]);
+    }
+  } else if (gas) {
+    title = "Mantle Network Status";
+    meta = "Live from the Mantle RPC";
+    summaryCards = [
+      { label: "GAS PRICE", value: gas.gas_price_gwei != null ? `${gas.gas_price_gwei} gwei` : "N/A", bg: "#F0FDF4", valueColor: GREEN },
+      { label: "LATEST BLOCK", value: gas.latest_block != null ? gas.latest_block.toLocaleString() : "N/A", bg: "#F8F8F8", valueColor: BLACK },
+      { label: "CHAIN", value: "Mantle (5000)", bg: "#F8F8F8", valueColor: BLACK },
+    ];
+  } else if (tokens) {
     title = "Top Tokens on Mantle";
     meta = `${tokens.returned} tokens from the Mantle ecosystem, live via CoinGecko`;
     tableHeaders = ["Token", "Price", "24h Change", "Market Cap", "Volume"];

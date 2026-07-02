@@ -20,6 +20,46 @@ const LLAMA_PROTOCOLS= "https://api.llama.fi/protocols";
 const CG_PRICE       = "https://api.coingecko.com/api/v3/simple/price?ids=mantle&vs_currencies=usd&include_24hr_change=true&include_market_cap=true";
 const CG_MARKETS     = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=mantle-ecosystem&per_page=20&page=1&sparkline=false&price_change_percentage=24h,7d";
 const CG_COIN_CHART  = "https://api.coingecko.com/api/v3/coins"; // /{id}/market_chart
+const MANTLE_RPC     = "https://rpc.mantle.xyz"; // chain id 5000, keyless
+const AGENT_API      = "/api/agent-tool";        // server-side tools (Etherscan key)
+
+// ── Mantle RPC (keyless JSON-RPC) ────────────────────────────────────────────
+const isAddress = (a) => typeof a === "string" && /^0x[a-fA-F0-9]{40}$/.test(a.trim());
+
+async function rpc(method, params = []) {
+  const res = await fetch(MANTLE_RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error.message || "RPC error");
+  return j.result;
+}
+
+const hexToNum = (h) => (h == null ? null : parseInt(h, 16));
+const weiToMnt = (hex) => {
+  try { return Number(BigInt(hex)) / 1e18; } catch { return null; }
+};
+
+// Call a server-side tool (Etherscan-backed). In local dev the /api route
+// does not exist, so we surface a clear message instead of a raw failure.
+async function callAgentApi(tool, args) {
+  try {
+    const res = await fetch(AGENT_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool, args }),
+    });
+    if (!res.ok) {
+      if (res.status === 404) return { error: "This lookup runs on the Fleepit backend, which is only available on the deployed site." };
+      return { error: `Backend tool failed (${res.status})` };
+    }
+    return res.json();
+  } catch {
+    return { error: "This lookup runs on the Fleepit backend, which is only available on the deployed site." };
+  }
+}
 
 // ── Caches ─────────────────────────────────────────────────────────────────
 let _poolsCache = null, _poolsFetchedAt = 0;
@@ -251,6 +291,61 @@ export const toolSchemas = [
           },
         },
         required: ["queries"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_gas_network",
+      description:
+        "Current Mantle network status: live gas price (gwei) and latest block number, read directly from the Mantle RPC. Use for 'what is gas on Mantle right now', 'how busy is Mantle', 'current block'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_wallet_overview",
+      description:
+        "Look up any Mantle address: native MNT balance, transaction count, and whether it is a normal wallet or a smart contract. Read directly from the Mantle RPC. Use when the user pastes a 0x… address and asks what it is or what it holds.",
+      parameters: {
+        type: "object",
+        properties: {
+          address: { type: "string", description: "A Mantle address (0x followed by 40 hex characters)." },
+        },
+        required: ["address"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_wallet_tokens",
+      description:
+        "List the ERC-20 token holdings of a Mantle address (symbol, name, live balance). Use when asked which tokens a wallet holds. Runs on the Fleepit backend via Etherscan.",
+      parameters: {
+        type: "object",
+        properties: {
+          address: { type: "string", description: "A Mantle address (0x…40 hex)." },
+        },
+        required: ["address"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_address_transactions",
+      description:
+        "Recent transaction history for a Mantle address (hash, direction, value, age, success/failure). Use when asked about an address's activity or recent transactions. Runs on the Fleepit backend via Etherscan.",
+      parameters: {
+        type: "object",
+        properties: {
+          address: { type: "string", description: "A Mantle address (0x…40 hex)." },
+          limit: { type: "number", description: "How many recent transactions (default 10, max 25)." },
+        },
+        required: ["address"],
       },
     },
   },
@@ -513,6 +608,53 @@ export const toolExecutors = {
       pools: poolRows.length ? poolRows : undefined,
       source: "CoinGecko (mantle-ecosystem) + DeFiLlama Yields",
     };
+  },
+
+  // ── On-chain tools (Mantle RPC, keyless) ──────────────────────────────────
+  async get_gas_network() {
+    const [gasHex, blockHex] = await Promise.all([
+      rpc("eth_gasPrice"),
+      rpc("eth_blockNumber"),
+    ]);
+    const gwei = gasHex ? Number(BigInt(gasHex)) / 1e9 : null;
+    return {
+      gas_price_gwei: gwei != null ? round(gwei, 3) : null,
+      gas_price_wei: gasHex ? BigInt(gasHex).toString() : null,
+      latest_block: hexToNum(blockHex),
+      source: "Mantle RPC (rpc.mantle.xyz, chain 5000)",
+    };
+  },
+
+  async get_wallet_overview(args = {}) {
+    const address = (args.address || "").trim();
+    if (!isAddress(address)) return { error: "Provide a valid Mantle address (0x followed by 40 hex characters)." };
+    const [balHex, nonceHex, code] = await Promise.all([
+      rpc("eth_getBalance", [address, "latest"]),
+      rpc("eth_getTransactionCount", [address, "latest"]),
+      rpc("eth_getCode", [address, "latest"]),
+    ]);
+    const mnt = weiToMnt(balHex);
+    const isContract = code && code !== "0x";
+    return {
+      address,
+      type: isContract ? "contract" : "wallet",
+      mnt_balance: mnt != null ? round(mnt, 4) : null,
+      mnt_balance_formatted: mnt != null ? `${round(mnt, 4)} MNT` : "N/A",
+      tx_count: hexToNum(nonceHex),
+      source: "Mantle RPC (rpc.mantle.xyz, chain 5000)",
+    };
+  },
+
+  // ── Server-backed tools (Etherscan key stays on the server) ───────────────
+  async get_wallet_tokens(args = {}) {
+    return callAgentApi("get_wallet_tokens", { address: (args.address || "").trim() });
+  },
+
+  async get_address_transactions(args = {}) {
+    return callAgentApi("get_address_transactions", {
+      address: (args.address || "").trim(),
+      limit: args.limit,
+    });
   },
 };
 
