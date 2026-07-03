@@ -319,14 +319,15 @@ function formatResults(stepResults, question) {
   } else if (pools) {
     title = "Yield Pools on Mantle";
     meta = `${pools.returned} of ${pools.count} Mantle pools, live via DeFiLlama`;
-    tableHeaders = ["Pool", "Protocol", "APY", "TVL", "Risk"];
-    tableGridCols = "1.8fr 1.5fr 1fr 1.3fr 1fr";
+    tableHeaders = ["Pool", "Protocol", "APY", "TVL", "Risk", ""];
+    tableGridCols = "1.6fr 1.3fr 0.9fr 1.1fr 0.9fr 0.9fr";
     tableRows = pools.pools.map((p) => [
       cell(p.symbol, "600", BLACK),
       cell(p.project, "400", GRAY),
       cell(`${(p.apy || 0).toFixed(2)}%`, "600", GREEN),
       cell(p.tvlFormatted, "500", BLACK),
       cell(p.risk === "low" ? "Low" : p.risk === "medium" ? "Medium" : "High", "500", p.risk === "low" ? GREEN : p.risk === "medium" ? "#F59E0B" : RED),
+      p.url ? cell("Invest →", "600", GREEN, p.url) : cell("", "400", GRAY),
     ]);
     const avgApy = pools.pools.reduce((s, p) => s + (p.apy || 0), 0) / Math.max(pools.pools.length, 1);
     summaryCards = [
@@ -368,12 +369,13 @@ function formatResults(stepResults, question) {
         cell(t.market_cap_formatted, "500", GRAY),
       ]);
     } else if (compare.pools?.length) {
-      tableHeaders = ["Pool", "Protocol", "APY", "TVL", "Risk"];
-      tableGridCols = "1.8fr 1.5fr 1fr 1.3fr 1fr";
+      tableHeaders = ["Pool", "Protocol", "APY", "TVL", "Risk", ""];
+      tableGridCols = "1.6fr 1.3fr 0.9fr 1.1fr 0.9fr 0.9fr";
       tableRows = compare.pools.map((p) => [
         cell(p.symbol, "600", BLACK), cell(p.project, "400", GRAY),
         cell(`${(p.apy || 0).toFixed(2)}%`, "600", GREEN), cell(p.tvlFormatted, "500", BLACK),
         cell(p.risk, "500", p.risk === "low" ? GREEN : p.risk === "medium" ? "#F59E0B" : RED),
+        p.url ? cell("Invest →", "600", GREEN, p.url) : cell("", "400", GRAY),
       ]);
     }
     summaryCards = [{ label: "ASSETS COMPARED", value: `${compare.compared}`, bg: "#F8F8F8", valueColor: BLACK }];

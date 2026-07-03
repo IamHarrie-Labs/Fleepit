@@ -108,7 +108,7 @@ function fmtUsd(n) {
   if (n >= 1e3) return `$${(n/1e3).toFixed(0)}K`;
   return `$${n.toFixed(0)}`;
 }
-function slimPool(p) {
+function slimPool(p, protocolUrls) {
   return {
     id: p.pool, project: p.project, symbol: p.symbol,
     apy: round(p.apy), apyBase: round(p.apyBase), apyReward: round(p.apyReward),
@@ -116,7 +116,17 @@ function slimPool(p) {
     stablecoin: !!p.stablecoin, ilRisk: p.ilRisk ?? "unknown",
     rewardTokens: p.rewardTokens ?? [], risk: classifyRisk(p),
     predictedClass: p.predictions?.predictedClass ?? null,
+    // The protocol's own site, so a result can link straight to where you'd
+    // actually go to act on it — never a fabricated deep link to the exact
+    // pool, since DeFiLlama doesn't expose one, just the real protocol entry point.
+    url: protocolUrls?.get(p.project) || null,
   };
+}
+// project slug -> official site, sourced from the same DeFiLlama protocols
+// list get_mantle_protocols already uses, so it's one real, live-cached lookup.
+async function getProtocolUrlMap() {
+  const protocols = await getMantleProtocols();
+  return new Map(protocols.map((p) => [p.slug, p.url]).filter(([, url]) => !!url));
 }
 // Deterministic stablecoin detection — filtering happens in code, not by
 // asking the LLM nicely in a prompt, since prompt-only filtering is
@@ -517,7 +527,7 @@ export const toolExecutors = {
   },
 
   async list_mantle_pools(args = {}) {
-    const pools = await getMantlePools();
+    const [pools, protocolUrls] = await Promise.all([getMantlePools(), getProtocolUrlMap()]);
     let out = [...pools];
     if (args.stablecoin_only) out = out.filter(p => p.stablecoin);
     if (args.max_risk) {
@@ -531,17 +541,17 @@ export const toolExecutors = {
     const limit = Math.min(args.limit ?? 8, 25);
     return {
       count: out.length, returned: Math.min(limit, out.length),
-      pools: out.slice(0, limit).map(slimPool),
+      pools: out.slice(0, limit).map((p) => slimPool(p, protocolUrls)),
       source: "DeFiLlama Yields (yields.llama.fi/pools), chain=Mantle",
     };
   },
 
   async get_pool_details(args = {}) {
-    const pools = await getMantlePools();
+    const [pools, protocolUrls] = await Promise.all([getMantlePools(), getProtocolUrlMap()]);
     const matches = findPools(pools, args.query).slice(0, 5);
     return {
       query: args.query,
-      matches: matches.length ? matches.map(slimPool) : [],
+      matches: matches.length ? matches.map((p) => slimPool(p, protocolUrls)) : [],
       note: matches.length ? undefined : "No match found. Try list_mantle_pools to browse available pools.",
       source: "DeFiLlama Yields (yields.llama.fi/pools)",
     };
@@ -608,11 +618,11 @@ export const toolExecutors = {
     }
 
     if (type !== "tokens" && tokenRows.length < queries.length) {
-      const pools = await getMantlePools();
+      const [pools, protocolUrls] = await Promise.all([getMantlePools(), getProtocolUrlMap()]);
       const missing = queries.filter(q => !tokenRows.some(t => t.symbol?.toLowerCase() === q.toLowerCase()));
       for (const q of missing) {
         const p = pools.find(x => x.pool === q) || findPools(pools, q)[0];
-        if (p) poolRows.push(slimPool(p));
+        if (p) poolRows.push(slimPool(p, protocolUrls));
       }
     }
 
