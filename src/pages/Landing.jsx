@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import FleepitLogo from "../components/layout/FleepitLogo";
+import AgentIdentityBadge from "../components/layout/AgentIdentityBadge";
 
 const BRANDS = ["DeFiLlama", "CoinGecko", "xStocks", "Fluxion", "Mantle", "InsightX", "Bybit"];
 const BRAND_FONTS = [
@@ -311,6 +312,7 @@ export default function Landing({ onLaunch }) {
           >
             Fork the Agent Skill →
           </a>
+          <AgentIdentityBadge className="fleepit-footer-link" />
           <button onClick={onLaunch} className="fleepit-footer-link" style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer", transition: "color 0.2s" }}>
             Launch App →
           </button>

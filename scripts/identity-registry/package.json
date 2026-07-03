@@ -1,0 +1,16 @@
+{
+  "name": "fleepit-identity-registry",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Deploy-time only: compiles and deploys Fleepit's ERC-8004-compatible Identity Registry on Mantle. Never imported by the running app.",
+  "scripts": {
+    "compile": "node compile.mjs",
+    "deploy": "node deploy.mjs"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "solc": "^0.8.24",
+    "viem": "^2.21.0"
+  }
+}
