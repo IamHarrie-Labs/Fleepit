@@ -34,6 +34,7 @@ const KEYWORD_TOOLS = [
   { re: /trend|history|chart|good time to (buy|sell)|momentum over|last (week|month)/i, tools: ["get_token_price_history"] },
   { re: /sustainable|apy (trend|history|stable)|is this yield|pool history|been (stable|volatile)/i, tools: ["get_pool_details", "get_pool_history"] },
   { re: /\bcompare\b|\bvs\.?\b|\bversus\b|better than|which (one|is better)/i, tools: ["compare_assets"] },
+  { re: /\bnews\b|headline|announce|partnership|listing|launch(ed|es)?\b|what('s| is) (new|happening)|latest|recent(ly)? (update|development|event)/i, tools: ["get_mantle_news"] },
 ];
 
 function selectToolSchemas(question) {
@@ -57,6 +58,7 @@ Rules:
 - For investment projections ("if I invest $1000"), show principal, expected return, and the key caveat.
 - Be decisive: end with a clear answer, who it suits, and the main risk.
 - If the user's message refers back to the prior exchange ("that one", "the second option", "what about MNT instead"), use the conversation history above to resolve what they mean before deciding whether a tool call is needed.
+- Answer the question that was actually asked. Never substitute unrelated data because the right data is unavailable: if the user asks for news and you cannot get news, say so plainly rather than showing token prices instead.
 
 Tool routing:
 - prices / top or best tokens -> get_mantle_tokens; price trend or "good time to buy" -> get_token_price_history
@@ -65,6 +67,7 @@ Tool routing:
 - compare named assets -> compare_assets
 - gas / how busy / current block -> get_gas_network
 - a 0x address (what is it / what it holds / its activity) -> get_wallet_overview, plus get_wallet_tokens and get_address_transactions
+- news / what's happening / latest announcements or launches -> get_mantle_news
 - any investment question -> also get_mantle_chain_metrics for macro context
 
 General questions: for definitional or conceptual ones that need no live number (what is Mantle, what is mETH, what is an RWA), answer directly from your knowledge, framed as general context. Do not force a tool call.
@@ -87,6 +90,7 @@ const TOOL_LABELS = {
   get_wallet_overview: "Inspecting address on-chain",
   get_wallet_tokens: "Fetching token holdings",
   get_address_transactions: "Fetching transaction history",
+  get_mantle_news: "Scanning Mantle headlines",
 };
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
 function stepLabel(name, args) {
@@ -113,6 +117,7 @@ function stepSummary(name, result) {
       case "get_wallet_overview":  return `${result.type}, ${result.mnt_balance_formatted}`;
       case "get_wallet_tokens":    return result.needs_key ? "needs API key" : `${result.count ?? 0} tokens`;
       case "get_address_transactions": return result.needs_key ? "needs API key" : `${result.count ?? 0} txns`;
+      case "get_mantle_news":      return `${result.count ?? 0} headlines`;
       default: return "done";
     }
   } catch { return "done"; }

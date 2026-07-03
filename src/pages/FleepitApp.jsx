@@ -165,8 +165,8 @@ function LineChart({ data }) {
 }
 
 // ── Result formatting — builds design-shaped view model from real agent data ─
-function cell(v, weight, color) {
-  return { v: v === null || v === undefined ? "N/A" : String(v), weight: weight || "400", color: color || BLACK };
+function cell(v, weight, color, href) {
+  return { v: v === null || v === undefined ? "N/A" : String(v), weight: weight || "400", color: color || BLACK, href };
 }
 
 function formatResults(stepResults, question) {
@@ -183,13 +183,24 @@ function formatResults(stepResults, question) {
   const wallet = byName("get_wallet_overview")[0];
   const walletTokens = byName("get_wallet_tokens")[0];
   const addrTx = byName("get_address_transactions")[0];
+  const news = byName("get_mantle_news")[0];
 
   const shortAddr = (a) => (a && a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
 
   let title = "Research Results", meta = `Research on: "${question}"`;
   let summaryCards = [], tableHeaders = [], tableRows = [], tableGridCols = "", chartData = null;
 
-  if (wallet || walletTokens || addrTx) {
+  if (news?.articles?.length) {
+    title = "Mantle in the News";
+    meta = `${news.count} recent headlines, newest first`;
+    tableHeaders = ["Headline", "Source", "Age"];
+    tableGridCols = "4fr 1.2fr 0.8fr";
+    tableRows = news.articles.map((a) => [
+      cell(a.title, "500", BLACK, a.link),
+      cell(a.source, "400", GRAY),
+      cell(a.age, "400", GRAY),
+    ]);
+  } else if (wallet || walletTokens || addrTx) {
     // On-chain address view — prefer overview, layer in tokens/transactions.
     const addr = wallet?.address || walletTokens?.address || addrTx?.address;
     title = "Address Overview";
@@ -670,7 +681,11 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
                   {r.tableRows.map((row, ri) => (
                     <div key={ri} style={{ display: "grid", gridTemplateColumns: r.tableGridCols, padding: "13px 24px", borderBottom: ri < r.tableRows.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
                       {row.map((c, ci) => (
-                        <div key={ci} style={{ fontWeight: c.weight, color: c.color, fontSize: 13, fontVariantNumeric: "tabular-nums", lineHeight: 1.5 }}>{c.v}</div>
+                        <div key={ci} style={{ fontWeight: c.weight, color: c.color, fontSize: 13, fontVariantNumeric: "tabular-nums", lineHeight: 1.5, paddingRight: 12 }}>
+                          {c.href
+                            ? <a href={c.href} target="_blank" rel="noreferrer" style={{ color: c.color, textDecoration: "underline", textUnderlineOffset: 3, textDecorationColor: "rgba(0,0,0,0.2)" }}>{c.v}</a>
+                            : c.v}
+                        </div>
                       ))}
                     </div>
                   ))}

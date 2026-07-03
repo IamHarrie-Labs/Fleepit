@@ -1,21 +1,21 @@
 /**
  * Fleepit Agent — server-side tool endpoint.
  *
- * Runs the research tools that must live on a server: the ones backed by an
- * Etherscan API key (wallet token holdings, transaction history). Keeping
- * these here means the key stays secret instead of being shipped to the
- * browser like a VITE_ variable.
+ * Runs the research tools that must live on a server: Etherscan-backed
+ * lookups (the key stays secret instead of being shipped to the browser
+ * like a VITE_ variable) and RSS fetches (blocked by CORS in the browser).
  *
  * Contract:  POST { "tool": "<name>", "args": { ... } }  ->  JSON result
  *
  * Supported tools:
- *   get_wallet_tokens       { address }           ERC-20 holdings for an address
- *   get_address_transactions{ address, limit? }   recent transactions for an address
+ *   get_wallet_tokens        { address }           ERC-20 holdings for an address
+ *   get_address_transactions { address, limit? }   recent transactions for an address
+ *   get_mantle_news          { limit? }            latest Mantle headlines (no key)
  *
- * Requires env: ETHERSCAN_API_KEY (free at https://etherscan.io/apis).
- * Etherscan's V2 unified API officially covers Mantle Mainnet (chainid 5000).
- * When the key is absent every tool returns a clear needs_key result rather
- * than throwing, so the rest of the app keeps working.
+ * Requires env: ETHERSCAN_API_KEY (free at https://etherscan.io/apis) for
+ * the wallet tools only. Etherscan's V2 unified API officially covers
+ * Mantle Mainnet (chainid 5000). When the key is absent those tools return
+ * a clear needs_key result rather than throwing; news needs no key at all.
  */
 
 export const config = { maxDuration: 20 };
@@ -137,9 +137,67 @@ async function getAddressTransactions(args, key) {
   };
 }
 
+// Latest Mantle headlines from Google News RSS. Keyless; fetched here
+// because RSS endpoints are CORS-blocked in the browser. Non-commercial,
+// personal-feed use per the feed's terms; each item keeps its source
+// attribution and links back to the original article.
+const NEWS_RSS =
+  "https://news.google.com/rss/search?q=%22Mantle%20Network%22%20OR%20%22Mantle%20blockchain%22%20OR%20%22MNT%20token%22&hl=en-US&gl=US&ceid=US:en";
+
+function stripCdata(s) {
+  return (s || "").replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "").trim();
+}
+
+function decodeEntities(s) {
+  return (s || "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+}
+
+async function getMantleNews(args) {
+  const limit = Math.min(Math.max(Number(args?.limit) || 8, 1), 15);
+  const res = await fetch(NEWS_RSS, { headers: { Accept: "application/rss+xml, text/xml" } });
+  if (!res.ok) return { error: `News feed unavailable (${res.status})` };
+  const xml = await res.text();
+
+  const items = [];
+  const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+  for (const block of itemBlocks) {
+    const pick = (tag) => decodeEntities(stripCdata(block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`))?.[1] || ""));
+    let title = pick("title");
+    const sourceName = pick("source");
+    // Google News appends " - Source" to titles; trim it when it matches.
+    if (sourceName && title.endsWith(` - ${sourceName}`)) {
+      title = title.slice(0, -(sourceName.length + 3));
+    }
+    const pubDate = pick("pubDate");
+    const ts = pubDate ? Date.parse(pubDate) : 0;
+    items.push({
+      title,
+      link: pick("link"),
+      source: sourceName || "Google News",
+      published: pubDate,
+      ts,
+      age: ts ? ageFrom(ts / 1000) : "",
+    });
+  }
+
+  // The feed arrives in relevance order; "latest news" means newest first.
+  items.sort((a, b) => b.ts - a.ts);
+  const articles = items.slice(0, limit).map(({ ts, ...rest }) => rest);
+
+  return {
+    count: articles.length,
+    articles,
+    note: articles.length ? undefined : "No recent Mantle headlines found.",
+    source: "Google News RSS (Mantle Network)",
+  };
+}
+
 const TOOLS = {
   get_wallet_tokens: getWalletTokens,
   get_address_transactions: getAddressTransactions,
+  get_mantle_news: getMantleNews,
 };
 
 // ── Handler ─────────────────────────────────────────────────────────────────

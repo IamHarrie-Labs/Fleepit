@@ -349,6 +349,20 @@ export const toolSchemas = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_mantle_news",
+      description:
+        "Latest news headlines about the Mantle ecosystem (launches, listings, partnerships, ecosystem reports), newest first. Use for: 'any news on Mantle', 'what's happening', 'latest updates', 'recent announcements'. Each article has title, source, link, and age.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: { type: "number", description: "How many headlines (default 8, max 15)." },
+        },
+      },
+    },
+  },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -655,6 +669,10 @@ export const toolExecutors = {
       address: (args.address || "").trim(),
       limit: args.limit,
     });
+  },
+
+  async get_mantle_news(args = {}) {
+    return callAgentApi("get_mantle_news", { limit: args.limit });
   },
 };
 
