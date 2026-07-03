@@ -396,7 +396,18 @@ const SUGGESTIONS = [
   { label: "Chain health", q: "Mantle chain health, TVL and activity trends" },
 ];
 
-export default function FleepitApp({ onHome, onNavAlerts }) {
+const HISTORY_KEY = "fleepit_history_v1";
+function loadStoredHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsumeInitialQuery }) {
   const [mode, setMode] = useState("home"); // home | loading | results
   const [inputValue, setInputValue] = useState("");
   const [currentQuery, setCurrentQuery] = useState("");
@@ -405,9 +416,12 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
   const [briefCards, setBriefCards] = useState([]);
   const [briefLoading, setBriefLoading] = useState(true);
   const [listening, setListening] = useState(false);
-  const [history, setHistory] = useState([]); // { question, answer }[], most recent last
+  const [history, setHistory] = useState(loadStoredHistory); // { question, answer }[], most recent last, persisted across reloads
   const historyRef = useRef([]);
-  useEffect(() => { historyRef.current = history; }, [history]);
+  useEffect(() => {
+    historyRef.current = history;
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* storage unavailable, memory just won't persist */ }
+  }, [history]);
   const recRef = useRef(null);
   const transcriptRef = useRef("");
   const hasKey = !!GROQ_API_KEY;
@@ -529,7 +543,22 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
     setHistory((h) => [...h, { question: q, answer }].slice(-6));
   }, []);
 
-  const goHome = () => { setMode("home"); setInputValue(""); setCurrentQuery(""); setSteps([]); setResult(null); setHistory([]); };
+  // A nav quick-link (Tokens/Pools/Chain Health) clicked from another page
+  // arrives here as a query to run on landing, since this component only
+  // mounts once App.jsx has already switched views.
+  useEffect(() => {
+    if (initialQuery) {
+      research(initialQuery);
+      onConsumeInitialQuery?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery]);
+
+  const goHome = () => {
+    setMode("home"); setInputValue(""); setCurrentQuery(""); setSteps([]); setResult(null);
+    setHistory([]);
+    try { localStorage.removeItem(HISTORY_KEY); } catch { /* storage unavailable */ }
+  };
   const submitQuery = () => research(inputValue);
 
   const toggleVoice = () => {
@@ -567,14 +596,7 @@ export default function FleepitApp({ onHome, onNavAlerts }) {
         onHome={onHome}
         onNavApp={goHome}
         onNavAlerts={onNavAlerts}
-        extra={
-          <>
-            <span className="fleepit-nav-link" onClick={() => research("Top performing tokens on Mantle right now")} style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", cursor: "pointer", transition: "color 0.15s" }}>Tokens</span>
-            <span className="fleepit-nav-link" onClick={() => research("Best yield pools on Mantle right now")} style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", cursor: "pointer", transition: "color 0.15s" }}>Pools</span>
-            <span className="fleepit-nav-link" onClick={() => research("RWA and tokenized asset protocols on Mantle")} style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", cursor: "pointer", transition: "color 0.15s" }}>RWAs</span>
-            <span className="fleepit-nav-link" onClick={() => research("Mantle chain health, TVL and activity")} style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", cursor: "pointer", transition: "color 0.15s" }}>Chain Health</span>
-          </>
-        }
+        onQuickQuery={research}
       />
 
       <div style={{ paddingTop: 60 }}>

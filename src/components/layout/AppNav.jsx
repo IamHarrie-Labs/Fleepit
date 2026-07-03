@@ -28,9 +28,17 @@ function MenuIcon({ open }) {
  *   onHome        click logo -> back to Landing
  *   onNavApp      go to research terminal
  *   onNavAlerts   go to Alerts page
- *   extra         optional extra nav items (e.g. Tokens/Pools quick links), rendered both desktop + mobile
+ *   onQuickQuery  optional (query: string) => void, wires the Tokens/Pools/Chain
+ *                 Health shortcuts — same on every page, since they're just
+ *                 shortcuts into the research terminal, not page-specific content
  */
-export default function AppNav({ active, onHome, onNavApp, onNavAlerts, extra }) {
+const QUICK_LINKS = [
+  { label: "Tokens", q: "Top performing tokens on Mantle right now" },
+  { label: "Pools", q: "Best yield pools on Mantle right now" },
+  { label: "Chain Health", q: "Mantle chain health, TVL and activity" },
+];
+
+export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onQuickQuery }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -75,7 +83,9 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, extra })
         </div>
 
         <div className="fleepit-nav-desktop" style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          {extra}
+          {onQuickQuery && QUICK_LINKS.map((l) => (
+            <span key={l.label} className="fleepit-nav-link" onClick={() => onQuickQuery(l.q)} style={linkStyle(false)}>{l.label}</span>
+          ))}
           <span className="fleepit-nav-link" onClick={onNavApp} style={linkStyle(active === "app")}>Research</span>
           <span className="fleepit-nav-link" onClick={onNavAlerts} style={linkStyle(active === "alerts")}>Alerts</span>
         </div>
@@ -97,7 +107,13 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, extra })
 
       {open && (
         <div className="fleepit-nav-drawer" style={{ position: "fixed", top: 60, left: 0, right: 0, zIndex: 99, background: "#F5F5F5", borderBottom: "1px solid rgba(0,0,0,0.08)", padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 2, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
-          {extra && <div style={{ display: "flex", flexDirection: "column" }}>{extra}</div>}
+          {onQuickQuery && (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {QUICK_LINKS.map((l) => (
+                <span key={l.label} className="fleepit-nav-link" onClick={go(() => onQuickQuery(l.q))} style={linkStyle(false)}>{l.label}</span>
+              ))}
+            </div>
+          )}
           <button onClick={go(onNavApp)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "app" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Research</button>
           <button onClick={go(onNavAlerts)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "alerts" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Alerts</button>
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 4px 4px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>

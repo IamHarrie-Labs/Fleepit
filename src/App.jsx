@@ -11,6 +11,7 @@ const viewFromPath = (pathname) => PATH_TO_VIEW[pathname] || "landing";
 
 export default function App() {
   const [view, setView] = useState(() => viewFromPath(window.location.pathname));
+  const [pendingQuery, setPendingQuery] = useState(null);
 
   const navigate = useCallback((nextView) => {
     setView(nextView);
@@ -28,10 +29,16 @@ export default function App() {
   }, []);
 
   const goLanding = () => navigate("landing");
-  const goApp = () => navigate("app");
+  // Optional query lets nav shortcuts (Tokens/Pools/Chain Health) work from
+  // any page: they route to the research terminal and run there on arrival.
+  const goApp = (query) => {
+    if (query) setPendingQuery(query);
+    navigate("app");
+  };
   const goAlerts = () => navigate("alerts");
+  const consumePendingQuery = () => setPendingQuery(null);
 
   if (view === "landing") return <Landing onLaunch={goApp} />;
-  if (view === "alerts") return <Alerts onHome={goLanding} onNavApp={goApp} onNavAlerts={goAlerts} />;
-  return <FleepitApp onHome={goLanding} onNavAlerts={goAlerts} />;
+  if (view === "alerts") return <Alerts onHome={goLanding} onNavApp={goApp} onNavAlerts={goAlerts} onQuickQuery={goApp} />;
+  return <FleepitApp onHome={goLanding} onNavAlerts={goAlerts} initialQuery={pendingQuery} onConsumeInitialQuery={consumePendingQuery} />;
 }

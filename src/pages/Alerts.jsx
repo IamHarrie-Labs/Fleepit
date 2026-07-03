@@ -18,7 +18,7 @@ const STEPS = [
   { n: "3", text: "You're subscribed. Send /stop anytime to leave, or /status to check." },
 ];
 
-export default function Alerts({ onHome, onNavApp }) {
+export default function Alerts({ onHome, onNavApp, onQuickQuery }) {
   const [count, setCount] = useState(null);
   const [configured, setConfigured] = useState(null);
 
@@ -34,7 +34,7 @@ export default function Alerts({ onHome, onNavApp }) {
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", minHeight: "100vh", background: "#F5F5F5", color: BLACK }}>
-      <AppNav active="alerts" onHome={onHome} onNavApp={onNavApp} onNavAlerts={() => {}} />
+      <AppNav active="alerts" onHome={onHome} onNavApp={onNavApp} onNavAlerts={() => {}} onQuickQuery={onQuickQuery} />
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "112px 44px 80px" }}>
         <h1 style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.035em", lineHeight: 1.08, color: BLACK, marginBottom: 16 }}>
