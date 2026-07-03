@@ -42,7 +42,7 @@ const KEYWORD_TOOLS = [
   { re: /\bnews\b|headline|announce|partnership|listing|launch(ed|es)?\b|what('s| is) (new|happening)|latest|recent(ly)? (update|development|event)/i, tools: ["get_mantle_news"] },
 ];
 
-function selectToolSchemas(question) {
+export function selectToolSchemas(question) {
   const q = question || "";
   const names = new Set(CORE_TOOLS);
   for (const { re, tools } of KEYWORD_TOOLS) {
@@ -73,7 +73,7 @@ const COUNT_KEYWORDS = "tokens?|pools?|protocols?|coins?|assets?|picks?|options?
 // number, optionally with 1-2 filler words ("5 good tokens"), then a keyword noun
 const COUNT_RE = new RegExp(`\\b(${NUMBER_RE})\\s+(?:\\w+\\s+){0,2}(?:${COUNT_KEYWORDS})\\b`, "i");
 
-function extractRequestedCount(question) {
+export function extractRequestedCount(question) {
   const m = (question || "").match(COUNT_RE);
   if (!m) return null;
   const token = m[1].toLowerCase();
@@ -236,7 +236,7 @@ async function callGroqOnce(apiKey, model, messages, tools, temperature, onDelta
 // Groq rejects this as error code "tool_use_failed" but conveniently echoes
 // back exactly what the model tried to call in `failed_generation`. Recover
 // it directly rather than discarding a perfectly good intended call.
-function recoverToolCall(failedGeneration) {
+export function recoverToolCall(failedGeneration) {
   if (!failedGeneration) return null;
   const match = failedGeneration.match(/<function=([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})\s*<\/?function>?/);
   if (!match) return null;
@@ -257,7 +257,7 @@ function recoverToolCall(failedGeneration) {
 // "4.19s" or "8m19.392s". Parsed so short per-minute bursts can be waited
 // out automatically instead of surfacing an error for a few seconds' delay.
 const RETRY_AFTER_CAP = 20; // seconds — only auto-wait for short bursts, not the daily cap
-function parseRetryAfterSeconds(message) {
+export function parseRetryAfterSeconds(message) {
   const m = (message || "").match(/try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s/i);
   if (!m) return null;
   const [, h, min, s] = m;
@@ -306,7 +306,7 @@ async function callGroq(apiKey, model, messages, tools, onDelta, retries = 2) {
 // here is a canned string.
 const GREETING_RE = /^(hi|hiya|hello|hey|yo|gm|gn|sup|good\s(morning|afternoon|evening|day)|how far|thanks?|thank you|ok(ay)?|cool|nice)[\s!.,?]*$/i;
 
-function formatWaitDuration(totalSeconds) {
+export function formatWaitDuration(totalSeconds) {
   const s = Math.ceil(totalSeconds);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
@@ -314,7 +314,7 @@ function formatWaitDuration(totalSeconds) {
   return rem ? `${m}m ${rem}s` : `${m}m`;
 }
 
-function sanitizeError(e) {
+export function sanitizeError(e) {
   const msg = e?.message || "";
   if (/rate limit/i.test(msg)) {
     // The regex above stopped at the first "." (inside the fractional

@@ -136,7 +136,7 @@ const STABLECOIN_SYMBOLS = new Set([
   "tusd", "fdusd", "usdd", "gusd", "usdp", "lusd", "frax", "gho", "usds",
   "pyusd", "usda", "usdx", "usr", "usde0",
 ]);
-function isStablecoin(t) {
+export function isStablecoin(t) {
   const sym = (t.symbol || "").toLowerCase();
   if (STABLECOIN_SYMBOLS.has(sym)) return true;
   const nearDollar = t.current_price >= 0.97 && t.current_price <= 1.03;
@@ -144,7 +144,7 @@ function isStablecoin(t) {
   return nearDollar && looksStable;
 }
 
-function findPools(pools, q) {
+export function findPools(pools, q) {
   const term = (q || "").toLowerCase().trim();
   if (!term) return [];
   return pools
