@@ -5,17 +5,22 @@
  * DeFi yields, RWA, chain health, price analysis, investment timing,
  * comparisons, wallets, gas, and more. Not just pools.
  *
- * Uses Groq function-calling (Llama-3.3-70b) in a multi-step tool loop,
- * streamed token-by-token. Emits step + delta events via onStep for the
- * live "agent working" UI feed. Guardrails: round cap, per-call timeout,
- * caught tool errors, always resolves. No hardcoded answer text anywhere —
- * every reply, including greetings, comes from the model itself.
+ * Uses Groq function-calling (Llama-3.1-8b-instant) in a multi-step tool
+ * loop, streamed token-by-token. Emits step + delta events via onStep for
+ * the live "agent working" UI feed. Guardrails: round cap, per-call
+ * timeout, caught tool errors, always resolves. No hardcoded answer text
+ * anywhere — every reply, including greetings, comes from the model itself.
+ *
+ * Model: llama-3.1-8b-instant rather than the 70b version — Groq gives each
+ * hosted model its own separate daily token quota, and the 8b model's is
+ * much larger, so real users hit the free-tier daily cap far less often.
+ * Slightly less sharp reasoning than the 70b model, traded for reliability.
  */
 
 import { toolSchemas, toolExecutors } from "./agentTools";
 
 const GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_MODEL = "llama-3.1-8b-instant";
 const MAX_ROUNDS    = 4;      // most queries resolve in 1-2 rounds; cap keeps token use bounded
 const LLM_TIMEOUT   = 30_000;
 
@@ -221,16 +226,39 @@ function recoverToolCall(failedGeneration) {
   }
 }
 
+// Groq's rate-limit message always ends "...try again in <duration>", e.g.
+// "4.19s" or "8m19.392s". Parsed so short per-minute bursts can be waited
+// out automatically instead of surfacing an error for a few seconds' delay.
+const RETRY_AFTER_CAP = 20; // seconds — only auto-wait for short bursts, not the daily cap
+function parseRetryAfterSeconds(message) {
+  const m = (message || "").match(/try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s/i);
+  if (!m) return null;
+  const [, h, min, s] = m;
+  return (Number(h) || 0) * 3600 + (Number(min) || 0) * 60 + Number(s);
+}
+
 // Retries a failed tool-calling request. First tries to recover the
 // intended call from Groq's failed_generation payload (works immediately,
 // no wasted request); falls back to retrying with a nudged temperature so
-// a deterministic-ish failure doesn't just repeat itself identically.
+// a deterministic-ish failure doesn't just repeat itself identically. A
+// short per-minute rate limit (a few seconds) is waited out and retried
+// transparently; the much longer daily cap is left for sanitizeError to
+// surface, since waiting minutes inline isn't a real fix.
 async function callGroq(apiKey, model, messages, tools, onDelta, retries = 2) {
   let temperature = 0.3;
   for (let attempt = 0; ; attempt++) {
     try {
       return await callGroqOnce(apiKey, model, messages, tools, temperature, onDelta);
     } catch (e) {
+      if (e.code === "rate_limit_exceeded") {
+        const waitSeconds = parseRetryAfterSeconds(e.message);
+        if (waitSeconds != null && waitSeconds <= RETRY_AFTER_CAP && attempt < retries) {
+          await new Promise((r) => setTimeout(r, (waitSeconds + 0.5) * 1000));
+          continue;
+        }
+        throw e;
+      }
+
       const retryable = e.code === "tool_use_failed" || /failed to call a function/i.test(e.message || "");
       if (!retryable) throw e;
 
@@ -251,10 +279,22 @@ async function callGroq(apiKey, model, messages, tools, onDelta, retries = 2) {
 // here is a canned string.
 const GREETING_RE = /^(hi|hiya|hello|hey|yo|gm|gn|sup|good\s(morning|afternoon|evening|day)|how far|thanks?|thank you|ok(ay)?|cool|nice)[\s!.,?]*$/i;
 
+function formatWaitDuration(totalSeconds) {
+  const s = Math.ceil(totalSeconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem ? `${m}m ${rem}s` : `${m}m`;
+}
+
 function sanitizeError(e) {
   const msg = e?.message || "";
   if (/rate limit/i.test(msg)) {
-    const wait = msg.match(/try again in ([\dhms.\s]+?)[.,]/i)?.[1]?.trim();
+    // The regex above stopped at the first "." (inside the fractional
+    // seconds, e.g. "4.19s"), showing "in about 4." — parse the full
+    // duration properly instead.
+    const waitSeconds = parseRetryAfterSeconds(msg);
+    const wait = waitSeconds != null ? formatWaitDuration(waitSeconds) : null;
     return `The analyst is temporarily rate limited on its AI provider. Please try again${wait ? ` in about ${wait}` : " in a few minutes"}.`;
   }
   if (/failed to call a function/i.test(msg) || e?.code === "tool_use_failed") {
