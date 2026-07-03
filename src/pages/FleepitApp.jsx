@@ -83,6 +83,21 @@ function SearchBox({ placeholder, value, onChange, onSubmit, voiceSupported, lis
   );
 }
 
+function XIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+function shareOnX(question, answer, e) {
+  e.stopPropagation();
+  const tweet = `${question}\n\n${answer}`.slice(0, 260);
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent("https://fleepit.vercel.app")}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 // Stable top-level component (same reasoning as SearchBox above) — holds its
 // own flip state per card, so it can't live inside a render body that
 // recreates it on every keystroke elsewhere on the page.
@@ -105,9 +120,18 @@ function FlipCard({ question, answer }) {
           <div style={{ fontSize: 14, fontWeight: 500, color: BLACK, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical" }}>{question}</div>
           <div style={{ fontSize: 11, color: GRAY }}>Tap to flip →</div>
         </div>
-        <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden", transform: "rotateY(180deg)", background: BLACK, borderRadius: 16, padding: 18, overflowY: "auto" }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 8 }}>Analysis</div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{answer}</div>
+        <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden", transform: "rotateY(180deg)", background: BLACK, borderRadius: 16, padding: 18, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Analysis</div>
+            <button
+              onClick={(e) => shareOnX(question, answer, e)}
+              title="Share on X"
+              style={{ width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.1)", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <XIcon />
+            </button>
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical" }}>{answer}</div>
         </div>
       </div>
     </div>
