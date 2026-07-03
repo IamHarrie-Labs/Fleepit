@@ -152,7 +152,7 @@ export default async function handler(req, res) {
     const message =
       `🔔 *Fleepit Yield Brief* — ${now}\n\n` +
       `Top Mantle opportunities right now:\n\n${lines}\n\n` +
-      `[Open Fleepit →](https://fleepit.vercel.app)`;
+      `[Open Fleepit →](https://fleepit.xyz)`;
 
     // ── 5. Send to ALL subscribers ────────────────────────────────────────────
     const results = await Promise.allSettled(

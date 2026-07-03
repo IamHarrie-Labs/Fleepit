@@ -27,10 +27,10 @@ export default async function handler(req, res) {
     name: "Fleepit Analyst",
     description:
       "AI-native research agent for the Mantle ecosystem: live token, pool, protocol, gas, wallet, and news data, reasoned over and answered in plain language. Never uses mock data or canned replies — every answer traces back to a live source.",
-    image: "https://fleepit.vercel.app/fleepit-icon.png",
+    image: "https://fleepit.xyz/fleepit-icon.png",
     services: [
-      { name: "web", endpoint: "https://fleepit.vercel.app" },
-      { name: "MCP-style tools", endpoint: "https://fleepit.vercel.app/api/agent-tool", version: "1.0" },
+      { name: "web", endpoint: "https://fleepit.xyz" },
+      { name: "MCP-style tools", endpoint: "https://fleepit.xyz/api/agent-tool", version: "1.0" },
     ],
     x402Support: false,
     active: true,

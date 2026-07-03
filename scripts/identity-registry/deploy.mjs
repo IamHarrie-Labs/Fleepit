@@ -3,7 +3,7 @@
 // Usage:
 //   npm run compile
 //   DEPLOYER_PRIVATE_KEY=0x... RPC_URL=https://rpc.sepolia.mantle.xyz \
-//     node deploy.mjs --network mantle-sepolia --agent-uri https://fleepit.vercel.app/api/agent-card
+//     node deploy.mjs --network mantle-sepolia --agent-uri https://fleepit.xyz/api/agent-card
 //
 // Deploys AgentIdentityRegistry, then calls register(agentURI) once to mint
 // Fleepit's own identity token. Prints the values to paste into env vars.
@@ -30,7 +30,7 @@ async function main() {
   const network = NETWORKS[networkName];
   if (!network) throw new Error(`Unknown --network ${networkName}. Use one of: ${Object.keys(NETWORKS).join(", ")}`);
 
-  const agentURI = arg("agent-uri", "https://fleepit.vercel.app/api/agent-card");
+  const agentURI = arg("agent-uri", "https://fleepit.xyz/api/agent-card");
   const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
   const rpcUrl = process.env.RPC_URL || network.defaultRpc;
   if (!privateKey) throw new Error("Set DEPLOYER_PRIVATE_KEY in the environment (a fresh wallet dedicated to this deploy, never a wallet holding real funds until you've verified everything on testnet).");

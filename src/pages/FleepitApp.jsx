@@ -60,7 +60,7 @@ function MicIcon({ color }) {
 // Top-level (stable) component — must live outside FleepitApp's render body,
 // otherwise React treats it as a brand-new component type on every keystroke
 // and remounts the <input>, dropping focus after each character.
-function SearchBox({ placeholder, value, onChange, onSubmit, voiceSupported, listening, onToggleVoice, voiceIconColor, disabled }) {
+function SearchBox({ placeholder, value, onChange, onSubmit, voiceSupported, listening, transcribing, onToggleVoice, voiceIconColor, disabled }) {
   return (
     <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 18, padding: "5px 5px 5px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
       <SearchIcon />
@@ -68,11 +68,11 @@ function SearchBox({ placeholder, value, onChange, onSubmit, voiceSupported, lis
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && value.trim()) onSubmit(); }}
-        placeholder={placeholder}
+        placeholder={transcribing ? "Transcribing your voice…" : placeholder}
         style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 400, color: BLACK, outline: "none", padding: "14px 0", minWidth: 0, fontFamily: "inherit" }}
       />
       {voiceSupported && (
-        <button onClick={onToggleVoice} style={{ width: 42, height: 42, borderRadius: 10, border: "none", background: listening ? BLACK : "#F0F0F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }} title="Voice input">
+        <button onClick={onToggleVoice} disabled={transcribing} style={{ width: 42, height: 42, borderRadius: 10, border: "none", background: listening || transcribing ? BLACK : "#F0F0F0", cursor: transcribing ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s", opacity: transcribing ? 0.7 : 1 }} title={transcribing ? "Transcribing…" : "Voice input"}>
           <MicIcon color={voiceIconColor} />
         </button>
       )}
@@ -94,7 +94,7 @@ function XIcon() {
 function shareOnX(question, answer, e) {
   e.stopPropagation();
   const tweet = `${question}\n\n${answer}`.slice(0, 260);
-  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent("https://fleepit.vercel.app")}`;
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent("https://fleepit.xyz")}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
@@ -477,10 +477,11 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
     historyRef.current = history;
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* storage unavailable, memory just won't persist */ }
   }, [history]);
-  const recRef = useRef(null);
-  const transcriptRef = useRef("");
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const [transcribing, setTranscribing] = useState(false);
   const hasKey = !!GROQ_API_KEY;
-  const voiceSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  const voiceSupported = typeof window !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof window.MediaRecorder !== "undefined";
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -618,27 +619,53 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
   };
   const submitQuery = () => research(inputValue);
 
-  const toggleVoice = () => {
-    if (!voiceSupported) return;
-    if (listening) { recRef.current?.stop(); return; }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const rec = new SR();
-    rec.lang = "en-US"; rec.continuous = false; rec.interimResults = true;
-    transcriptRef.current = "";
-    rec.onresult = (e) => {
-      const text = Array.from(e.results).map((r) => r[0].transcript).join("");
-      transcriptRef.current = text;
-      setInputValue(text);
-    };
-    rec.onend = () => {
+  // Records real audio and transcribes it via Groq's Whisper endpoint, rather
+  // than the browser's own built-in speech recognition — that engine varies
+  // wildly in accuracy per browser and can't be tuned from here, whereas
+  // Whisper gives consistent, much better transcription everywhere.
+  const toggleVoice = async () => {
+    if (!voiceSupported || transcribing) return;
+    if (listening) { mediaRecorderRef.current?.stop(); return; }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      return; // mic permission denied or unavailable
+    }
+
+    const mr = new MediaRecorder(stream);
+    audioChunksRef.current = [];
+    mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+    mr.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
       setListening(false);
-      const finalText = transcriptRef.current.trim();
-      if (finalText) research(finalText);
+      const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || "audio/webm" });
+      if (blob.size < 1000) return; // essentially silence, nothing to transcribe
+
+      setTranscribing(true);
+      try {
+        const form = new FormData();
+        form.append("file", blob, "voice.webm");
+        form.append("model", "whisper-large-v3-turbo");
+        const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+          body: form,
+        });
+        const data = await res.json();
+        const text = (data.text || "").trim();
+        if (text) { setInputValue(text); research(text); }
+      } catch {
+        /* transcription failed — leave the input box as-is */
+      } finally {
+        setTranscribing(false);
+      }
     };
-    rec.onerror = () => setListening(false);
-    recRef.current = rec;
+
+    mediaRecorderRef.current = mr;
+    mr.start();
     setListening(true);
-    rec.start();
   };
 
   const isHome = mode === "home", isLoading = mode === "loading", hasResults = mode === "results";
@@ -677,6 +704,7 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
                 listening={listening}
                 onToggleVoice={toggleVoice}
                 voiceIconColor={voiceIconColor}
+                transcribing={transcribing}
                 disabled={!hasKey}
               />
             </div>
@@ -830,6 +858,7 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
                 listening={listening}
                 onToggleVoice={toggleVoice}
                 voiceIconColor={voiceIconColor}
+                transcribing={transcribing}
                 disabled={!hasKey}
               />
             </div>

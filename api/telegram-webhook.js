@@ -13,7 +13,7 @@
  *     UPSTASH_REDIS_REST_URL   = https://xxxx.upstash.io
  *     UPSTASH_REDIS_REST_TOKEN = AXxx...
  *  3. Set the Telegram webhook to point to this endpoint:
- *     https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://fleepit.vercel.app/api/telegram-webhook
+ *     https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://fleepit.xyz/api/telegram-webhook
  */
 
 export const config = { maxDuration: 10 };
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
           `Commands:\n` +
           `/stop — unsubscribe from alerts\n` +
           `/status — check your subscription\n\n` +
-          `_Powered by Fleepit · fleepit.vercel.app_`
+          `_Powered by Fleepit · fleepit.xyz_`
         );
         break;
       }
@@ -122,7 +122,7 @@ export default async function handler(req, res) {
           `/start — subscribe to alerts\n` +
           `/stop — unsubscribe\n` +
           `/status — check subscription\n\n` +
-          `_fleepit.vercel.app_`
+          `_fleepit.xyz_`
         );
       }
     }

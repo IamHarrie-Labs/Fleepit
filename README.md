@@ -2,7 +2,7 @@
 
 An AI-native research agent for the Mantle ecosystem.
 
-Live at **[fleepit.vercel.app](https://fleepit.vercel.app)**
+Live at **[fleepit.xyz](https://fleepit.xyz)** (also reachable at [fleepit.vercel.app](https://fleepit.vercel.app))
 
 Ask anything about Mantle in plain English. The agent plans its own research, calls live data tools, shows every step of its work, and answers with tables, charts, and a written analysis in which every number traces to a live source. Nothing is mocked and nothing is guessed.
 
