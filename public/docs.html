@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fleepit Docs</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --black: #0A0A0A;
+    --green: #0D9E6E;
+    --gray: #6B6B6B;
+    --lgray: #9B9B9B;
+    --bg: #F5F5F5;
+    --card: #FFFFFF;
+    --border: rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--black);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    line-height: 1.7;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(245,245,245,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header .brand {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+  header a.home {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray);
+    text-decoration: none;
+  }
+  header a.home:hover { color: var(--black); }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 100px;
+  }
+  h1 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 40px;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin: 0 0 10px;
+  }
+  .lede {
+    font-size: 17px;
+    color: var(--gray);
+    margin: 0 0 48px;
+    max-width: 560px;
+  }
+  h2 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    margin: 56px 0 14px;
+  }
+  h2:first-of-type { margin-top: 0; }
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 26px 0 8px;
+  }
+  p { font-size: 15px; color: #333; margin: 0 0 16px; }
+  ul { padding-left: 20px; margin: 0 0 16px; }
+  li { font-size: 15px; color: #333; margin-bottom: 8px; }
+  code {
+    background: #EFEFEF;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 13px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin: 18px 0;
+  }
+  .card p:last-child { margin-bottom: 0; }
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 48px;
+  }
+  .toc div { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--lgray); text-transform: uppercase; margin-bottom: 12px; }
+  .toc a { display: block; font-size: 14px; color: var(--black); text-decoration: none; padding: 5px 0; }
+  .toc a:hover { color: var(--green); }
+  a.inline { color: var(--black); text-decoration: underline; text-decoration-color: rgba(0,0,0,0.2); text-underline-offset: 3px; }
+  footer {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--lgray);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <span class="brand">Fleepit</span>
+    <a class="home" href="/">Back to Fleepit &rarr;</a>
+  </header>
+
+  <main>
+    <h1>Understanding Fleepit</h1>
+    <p class="lede">A plain guide to what Fleepit is, how it thinks, and everything it can actually do for you on Mantle.</p>
+
+    <div class="toc">
+      <div>On this page</div>
+      <a href="#what">What Fleepit is</a>
+      <a href="#start">Getting started</a>
+      <a href="#capabilities">What you can ask it</a>
+      <a href="#how">How it actually works</a>
+      <a href="#memory">Memory and flip cards</a>
+      <a href="#voice">Voice input</a>
+      <a href="#alerts">Alerts on Telegram</a>
+      <a href="#identity">Its identity on Mantle</a>
+      <a href="#skill">Using it from your own terminal</a>
+      <a href="#limits">A note on limits</a>
+      <a href="#faq">Questions people ask</a>
+    </div>
+
+    <h2 id="what">What Fleepit is</h2>
+    <p>Fleepit is a research agent built for the Mantle ecosystem. You ask it a question in plain English, and it goes out, pulls real numbers from live sources, reasons over them, and gives you a written answer you can actually trust. It is not a chat bot reciting facts it half remembers from training. Every figure it shows you was fetched the moment you asked, from a real source, and it will tell you exactly where that number came from.</p>
+    <p>The whole idea behind Fleepit is simple. Mantle has a lot going on, tokens launching, yields shifting, capital moving between protocols, and most people trying to make sense of it end up with five browser tabs open, none of which speak to each other. Fleepit is the one place that pulls it all together and actually answers the question you asked.</p>
+
+    <h2 id="start">Getting started</h2>
+    <p>Open the app and type your question into the box, the same way you would ask a knowledgeable friend. You can also speak your question aloud using the microphone icon next to the search bar. There is no sign up, no wallet connection required to research, and no cost to you as a visitor.</p>
+    <p>A few example questions to try right away:</p>
+    <ul>
+      <li>Top five tokens on Mantle today</li>
+      <li>Best yield pools right now</li>
+      <li>If I invest one thousand dollars for six months, what happens</li>
+      <li>Compare MNT against LINK</li>
+      <li>Any recent news on Mantle</li>
+    </ul>
+
+    <h2 id="capabilities">What you can ask it</h2>
+    <p>Fleepit covers the whole Mantle ecosystem, not one narrow slice of it.</p>
+    <ul>
+      <li><strong>Tokens.</strong> Prices, momentum, market caps. Stable, dollar pegged coins are left out of growth picks by default, since they are not something you invest in to grow, only ask about them directly if that is what you want.</li>
+      <li><strong>Protocols.</strong> Rankings by total value locked, how that value has moved over the past week and month, and what category each protocol falls under.</li>
+      <li><strong>Yield pools.</strong> Annual returns, total value locked, a plain risk read, and enough history to tell whether a yield is durable or about to disappear.</li>
+      <li><strong>Chain health.</strong> Overall value locked on Mantle, which direction capital is flowing, and the current MNT price.</li>
+      <li><strong>Gas and network state.</strong> Read straight from Mantle's own network.</li>
+      <li><strong>Any wallet address.</strong> Its balance, the tokens it holds, and its recent activity.</li>
+      <li><strong>Investment scenarios.</strong> Ask what happens if you put a certain amount in for a certain time, and get a full projection.</li>
+      <li><strong>News.</strong> Recent headlines about Mantle, pulled fresh, newest first.</li>
+      <li><strong>General questions.</strong> Anything else about how Mantle works, answered as honest context rather than pretending to be a live reading.</li>
+    </ul>
+
+    <h2 id="how">How it actually works</h2>
+    <p>When you ask something, Fleepit does not just guess an answer from memory. It reasons about your question, decides which of its tools it actually needs, calls them, reads what comes back, and only then writes your answer. You can watch each step happen live while it works.</p>
+    <p>If it cannot find the specific thing you asked about, it will say so plainly rather than quietly answering a different question instead. That rule matters more than it sounds. A lot of tools would rather show you something, anything, than admit they came up empty. Fleepit is built to resist that.</p>
+
+    <h2 id="memory">Memory and flip cards</h2>
+    <p>Fleepit remembers the conversation you are having with it. Ask a follow up question like "what about the second one" and it will understand exactly what you mean, without you needing to repeat yourself. That memory survives a page reload too, so closing the tab by accident does not erase your progress.</p>
+    <p>Every question you ask during a session also becomes a small flip card you can look back on. Tap one to flip it and see the full analysis again, or share it straight to X with one click.</p>
+
+    <h2 id="voice">Voice input</h2>
+    <p>Press the microphone icon, speak your question, and press it again to stop. Your voice is recorded briefly and sent to a proper transcription model, so it comes back accurate rather than relying on whatever speech recognition your browser happens to ship with.</p>
+
+    <h2 id="alerts">Alerts on Telegram</h2>
+    <p>If you would rather have Mantle come to you, Fleepit runs a Telegram bot that sends a twice daily yield brief, tells you the moment a new pool appears, and pings you when a pool's yield jumps sharply. Find the link on the Alerts page inside the app.</p>
+
+    <h2 id="identity">Its identity on Mantle</h2>
+    <p>Fleepit is registered on Mantle itself, with a real token that anyone can look up on a block explorer to confirm it is a genuine, addressable agent rather than just a website. This follows the shape of an emerging standard for giving AI agents a checkable identity on chain. It does not affect how research works day to day, it exists purely so Fleepit's own existence is verifiable, not just claimed.</p>
+
+    <h2 id="skill">Using it from your own terminal</h2>
+    <p>The same research capability that powers Fleepit also ships as a portable file that terminal based coding agents can use directly, things like Claude Code, Codex, or Gemini CLI. If you already use one of those tools, you can fork it and run your own Mantle research agent from the command line, no key required for most of it.</p>
+
+    <h2 id="limits">A note on limits</h2>
+    <p>Fleepit runs on a free tier of its underlying AI provider, which comes with a daily allowance of usage. On rare occasions, especially if a lot of people are asking questions in a short window, you might see a message saying the analyst is briefly rate limited. If that happens, it is not a bug, it simply means the free allowance for that stretch has been used, and it clears again shortly.</p>
+
+    <h2 id="faq">Questions people ask</h2>
+    <div class="card">
+      <p><strong>Is any of this made up?</strong><br>No. Every number traces back to a live source, DeFiLlama, CoinGecko, or Mantle's own network, and the source is always shown alongside the answer.</p>
+    </div>
+    <div class="card">
+      <p><strong>Do I need a wallet to use it?</strong><br>No. Looking up a wallet address is one of the things you can ask about, but you never need to connect your own wallet just to research.</p>
+    </div>
+    <div class="card">
+      <p><strong>Why did it exclude a stablecoin from my token list?</strong><br>Stable, dollar pegged coins do not grow in value, so they are left out of growth or investment picks by default. Ask about stablecoins directly if that is what you actually want.</p>
+    </div>
+    <div class="card">
+      <p><strong>Can I trust the yield numbers?</strong><br>Fleepit checks a yield's recent history before calling it durable, rather than repeating whatever number is showing this instant, which can be an incentive spike about to fade.</p>
+    </div>
+  </main>
+
+  <footer>Fleepit &middot; AI native research agent for the Mantle ecosystem</footer>
+</body>
+</html>

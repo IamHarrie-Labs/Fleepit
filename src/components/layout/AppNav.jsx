@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import FleepitLogo from "./FleepitLogo";
 
-const GREEN = "#0D9E6E";
-
 function MenuIcon({ open }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -89,9 +87,8 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onQuickQ
           <span className="fleepit-nav-link" onClick={onNavAlerts} style={linkStyle(active === "alerts")}>Alerts</span>
         </div>
 
-        <div className="fleepit-nav-desktop" style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN }} />
-          <span style={{ fontSize: 12, fontWeight: 500, color: "#9B9B9B", letterSpacing: "0.02em" }}>LIVE</span>
+        <div className="fleepit-nav-desktop" style={{ display: "flex", alignItems: "center" }}>
+          <a href="/docs.html" target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", textDecoration: "none", transition: "color 0.15s" }} className="fleepit-nav-link">Docs</a>
         </div>
 
         <button
@@ -115,10 +112,7 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onQuickQ
           )}
           <button onClick={go(onNavApp)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "app" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Research</button>
           <button onClick={go(onNavAlerts)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "alerts" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Alerts</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 4px 4px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN }} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: "#9B9B9B", letterSpacing: "0.02em" }}>LIVE</span>
-          </div>
+          <a href="/docs.html" target="_blank" rel="noreferrer" style={{ display: "block", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)", textDecoration: "none" }}>Docs</a>
         </div>
       )}
     </>
