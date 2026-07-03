@@ -40,10 +40,15 @@
     justify-content: space-between;
   }
   header .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-family: 'Poppins', sans-serif;
     font-weight: 600;
     font-size: 18px;
     letter-spacing: -0.02em;
+    color: var(--black);
+    text-decoration: none;
   }
   header a.home {
     font-size: 13px;
@@ -137,7 +142,10 @@
 </head>
 <body>
   <header>
-    <span class="brand">Fleepit</span>
+    <a class="brand" href="/">
+      <svg width="20" height="20" viewBox="0 0 256 256" fill="#0A0A0A"><path d="M128.005 191.173C128.448 156.208 156.93 128 192 128L192 64L128 64C128 99.346 99.346 128 64 128L64 192L128 192ZM192 256L64 256C28.654 256 0 227.346 0 192L0 64L64 64L64 0L192 0C227.346 0 256 28.654 256 64L256 192L192 192Z" /></svg>
+      <span>Fleepit</span>
+    </a>
     <a class="home" href="/">Back to Fleepit &rarr;</a>
   </header>
 
