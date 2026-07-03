@@ -341,7 +341,7 @@ export async function runResearchAgent({ question, apiKey, model, history = [], 
     } catch (e) {
       const text = sanitizeError(e);
       emit({ type: "error", text });
-      return { answer: text, sources: [], rounds: 0, conversational: true };
+      return { answer: text, sources: [], rounds: 0, conversational: true, error: true };
     }
   }
 
@@ -412,6 +412,6 @@ export async function runResearchAgent({ question, apiKey, model, history = [], 
   } catch (e) {
     const text = sanitizeError(e);
     emit({ type: "error", text });
-    return { answer: text, sources: [...sources], rounds };
+    return { answer: text, sources: [...sources], rounds, error: true };
   }
 }

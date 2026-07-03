@@ -33,7 +33,6 @@ function MenuIcon({ open }) {
  *                 shortcuts into the research terminal, not page-specific content
  */
 const QUICK_LINKS = [
-  { label: "Tokens", q: "Top performing tokens on Mantle right now" },
   { label: "Pools", q: "Best yield pools on Mantle right now" },
   { label: "Chain Health", q: "Mantle chain health, TVL and activity" },
 ];

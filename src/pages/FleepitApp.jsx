@@ -83,6 +83,37 @@ function SearchBox({ placeholder, value, onChange, onSubmit, voiceSupported, lis
   );
 }
 
+// Stable top-level component (same reasoning as SearchBox above) — holds its
+// own flip state per card, so it can't live inside a render body that
+// recreates it on every keystroke elsewhere on the page.
+function FlipCard({ question, answer }) {
+  const [flipped, setFlipped] = useState(false);
+  return (
+    <div
+      onClick={() => setFlipped((f) => !f)}
+      style={{ perspective: 1000, height: 150, cursor: "pointer" }}
+    >
+      <div
+        style={{
+          position: "relative", width: "100%", height: "100%",
+          transformStyle: "preserve-3d", transition: "transform 0.5s",
+          transform: flipped ? "rotateY(180deg)" : "none",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: 18, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: LGRAY, textTransform: "uppercase" }}>Question</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: BLACK, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical" }}>{question}</div>
+          <div style={{ fontSize: 11, color: GRAY }}>Tap to flip →</div>
+        </div>
+        <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden", transform: "rotateY(180deg)", background: BLACK, borderRadius: 16, padding: 18, overflowY: "auto" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 8 }}>Analysis</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{answer}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -514,7 +545,7 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
     const collected = [];
     let enteredResults = false;
 
-    const { answer, sources, conversational } = await runResearchAgent({
+    const { answer, sources, conversational, error } = await runResearchAgent({
       question: q, apiKey: GROQ_API_KEY, history: historyRef.current,
       onStep: (s) => {
         if (s.type === "tool_call") {
@@ -540,7 +571,9 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
     setResult({ ...formatted, analysis: answer, sources: sources.length ? sources : ["Fleepit Research Agent"], streaming: false });
     setMode("results");
 
-    setHistory((h) => [...h, { question: q, answer }].slice(-6));
+    // Don't remember a failed request as if it were a real answer — an error
+    // message sitting in history would confuse the next follow-up's context.
+    if (!error) setHistory((h) => [...h, { question: q, answer }].slice(-6));
   }, []);
 
   // A nav quick-link (Tokens/Pools/Chain Health) clicked from another page
@@ -747,6 +780,19 @@ export default function FleepitApp({ onHome, onNavAlerts, initialQuery, onConsum
                     <span style={{ fontSize: 12, fontWeight: 500, color: "#7A7A7A" }}>{src}</span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {history.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: LGRAY, textTransform: "uppercase", marginBottom: 14 }}>
+                  This session — tap a card to flip
+                </div>
+                <div className="fleepit-grid-3" style={{ display: "grid", gap: 14 }}>
+                  {history.map((h, i) => (
+                    <FlipCard key={i} question={h.question} answer={cleanAnalysis(h.answer)} />
+                  ))}
+                </div>
               </div>
             )}
 
