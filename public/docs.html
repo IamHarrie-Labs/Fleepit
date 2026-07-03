@@ -19,6 +19,7 @@
     --border: rgba(0,0,0,0.08);
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--bg);
@@ -51,10 +52,35 @@
     text-decoration: none;
   }
   header a.home:hover { color: var(--black); }
-  main {
-    max-width: 760px;
+  .layout {
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 56px 24px 100px;
+    padding: 0 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 48px;
+  }
+  nav.sidebar {
+    position: sticky;
+    top: 78px;
+    flex-shrink: 0;
+    width: 200px;
+    padding: 40px 0 60px;
+  }
+  nav.sidebar div.label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--lgray); text-transform: uppercase; margin-bottom: 14px; }
+  nav.sidebar a { display: block; font-size: 14px; color: var(--gray); text-decoration: none; padding: 6px 0; border-left: 2px solid transparent; padding-left: 12px; margin-left: -12px; transition: color 0.15s, border-color 0.15s; }
+  nav.sidebar a:hover { color: var(--black); }
+  nav.sidebar a.active { color: var(--black); font-weight: 500; border-left-color: var(--green); }
+  @media (max-width: 860px) {
+    .layout { flex-direction: column; gap: 0; }
+    nav.sidebar { position: static; width: 100%; padding: 24px 0 8px; overflow-x: auto; white-space: nowrap; }
+    nav.sidebar a { display: inline-block; padding: 6px 14px 6px 0; border-left: none; margin-left: 0; }
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 56px 0 100px;
+    min-width: 0;
   }
   h1 {
     font-family: 'Poppins', sans-serif;
@@ -100,16 +126,6 @@
     margin: 18px 0;
   }
   .card p:last-child { margin-bottom: 0; }
-  .toc {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px 24px;
-    margin-bottom: 48px;
-  }
-  .toc div { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--lgray); text-transform: uppercase; margin-bottom: 12px; }
-  .toc a { display: block; font-size: 14px; color: var(--black); text-decoration: none; padding: 5px 0; }
-  .toc a:hover { color: var(--green); }
   a.inline { color: var(--black); text-decoration: underline; text-decoration-color: rgba(0,0,0,0.2); text-underline-offset: 3px; }
   footer {
     text-align: center;
@@ -125,12 +141,9 @@
     <a class="home" href="/">Back to Fleepit &rarr;</a>
   </header>
 
-  <main>
-    <h1>Understanding Fleepit</h1>
-    <p class="lede">A plain guide to what Fleepit is, how it thinks, and everything it can actually do for you on Mantle.</p>
-
-    <div class="toc">
-      <div>On this page</div>
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="label">On this page</div>
       <a href="#what">What Fleepit is</a>
       <a href="#start">Getting started</a>
       <a href="#capabilities">What you can ask it</a>
@@ -142,7 +155,11 @@
       <a href="#skill">Using it from your own terminal</a>
       <a href="#limits">A note on limits</a>
       <a href="#faq">Questions people ask</a>
-    </div>
+    </nav>
+
+  <main>
+    <h1>Understanding Fleepit</h1>
+    <p class="lede">A plain guide to what Fleepit is, how it thinks, and everything it can actually do for you on Mantle.</p>
 
     <h2 id="what">What Fleepit is</h2>
     <p>Fleepit is a research agent built for the Mantle ecosystem. You ask it a question in plain English, and it goes out, pulls real numbers from live sources, reasons over them, and gives you a written answer you can actually trust. It is not a chat bot reciting facts it half remembers from training. Every figure it shows you was fetched the moment you asked, from a real source, and it will tell you exactly where that number came from.</p>
@@ -210,7 +227,25 @@
       <p><strong>Can I trust the yield numbers?</strong><br>Fleepit checks a yield's recent history before calling it durable, rather than repeating whatever number is showing this instant, which can be an incentive spike about to fade.</p>
     </div>
   </main>
+  </div>
 
   <footer>Fleepit &middot; AI native research agent for the Mantle ecosystem</footer>
+
+  <script>
+    // Highlights the sidebar link for whichever section is currently in view.
+    const sections = [...document.querySelectorAll("main h2[id]")];
+    const links = new Map([...document.querySelectorAll("nav.sidebar a")].map((a) => [a.getAttribute("href").slice(1), a]));
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const link = links.get(entry.target.id);
+        if (!link) continue;
+        if (entry.isIntersecting) {
+          for (const a of links.values()) a.classList.remove("active");
+          link.classList.add("active");
+        }
+      }
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    sections.forEach((s) => observer.observe(s));
+  </script>
 </body>
 </html>

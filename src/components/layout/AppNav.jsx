@@ -88,7 +88,7 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onQuickQ
         </div>
 
         <div className="fleepit-nav-desktop" style={{ display: "flex", alignItems: "center" }}>
-          <a href="/docs.html" target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", textDecoration: "none", transition: "color 0.15s" }} className="fleepit-nav-link">Docs</a>
+          <a href="/docs" target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 500, color: "#6B6B6B", textDecoration: "none", transition: "color 0.15s" }} className="fleepit-nav-link">Docs</a>
         </div>
 
         <button
@@ -112,7 +112,7 @@ export default function AppNav({ active, onHome, onNavApp, onNavAlerts, onQuickQ
           )}
           <button onClick={go(onNavApp)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "app" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Research</button>
           <button onClick={go(onNavAlerts)} style={{ textAlign: "left", background: "none", border: "none", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: active === "alerts" ? "#0A0A0A" : "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)" }}>Alerts</button>
-          <a href="/docs.html" target="_blank" rel="noreferrer" style={{ display: "block", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)", textDecoration: "none" }}>Docs</a>
+          <a href="/docs" target="_blank" rel="noreferrer" style={{ display: "block", padding: "14px 4px", fontSize: 15, fontWeight: 500, color: "#6B6B6B", borderTop: "1px solid rgba(0,0,0,0.06)", textDecoration: "none" }}>Docs</a>
         </div>
       )}
     </>

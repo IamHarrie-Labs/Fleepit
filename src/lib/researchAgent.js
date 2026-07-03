@@ -53,6 +53,33 @@ function selectToolSchemas(question) {
 const TOOL_RESULT_CAP = 2500; // chars of a tool result fed back to the model
 const HISTORY_TURNS   = 3;    // prior user/assistant exchanges kept for follow-up context
 
+// ── Deterministic "how many did you actually ask for" enforcement ──────────
+// The model picks its own `limit` argument when calling a list tool, and it
+// doesn't reliably match a count the user actually stated ("give me 5 good
+// tokens" can still come back as a limit of 3). Rather than trust the model
+// to get this right every time, the user's stated count is extracted here
+// with a plain regex and forced onto the tool call — the same "put the rule
+// in code, not just the prompt" approach already used for stablecoin
+// filtering. Only applied to tools whose whole job is "list N things", so it
+// can't misfire on unrelated numbers like a dollar amount or a duration.
+const LIST_TOOLS_WITH_LIMIT = new Set(["get_mantle_tokens", "get_mantle_protocols", "list_mantle_pools", "get_mantle_news"]);
+const WORD_TO_NUM = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+};
+const NUMBER_RE = `(?:\\d{1,2}|${Object.keys(WORD_TO_NUM).join("|")})`;
+const COUNT_KEYWORDS = "tokens?|pools?|protocols?|coins?|assets?|picks?|options?|recommendations?|headlines?|posts?|opportunities?";
+// number, optionally with 1-2 filler words ("5 good tokens"), then a keyword noun
+const COUNT_RE = new RegExp(`\\b(${NUMBER_RE})\\s+(?:\\w+\\s+){0,2}(?:${COUNT_KEYWORDS})\\b`, "i");
+
+function extractRequestedCount(question) {
+  const m = (question || "").match(COUNT_RE);
+  if (!m) return null;
+  const token = m[1].toLowerCase();
+  return /^\d+$/.test(token) ? Number(token) : WORD_TO_NUM[token] ?? null;
+}
+
 // ── System prompts ──────────────────────────────────────────────────────────
 
 const ANALYST_SYSTEM = `You are the Fleepit Analyst, a buy-side research agent for the whole Mantle ecosystem (chain 5000): tokens, protocols, yield pools, RWAs, chain metrics, gas, and wallet addresses.
@@ -380,6 +407,11 @@ export async function runResearchAgent({ question, apiKey, model, history = [], 
         // valid JSON that parses to the JS value null, not {} — every
         // executor below expects an object, so normalize it here once.
         if (!args || typeof args !== "object" || Array.isArray(args)) args = {};
+
+        if (LIST_TOOLS_WITH_LIMIT.has(name)) {
+          const requestedCount = extractRequestedCount(question);
+          if (requestedCount != null) args.limit = requestedCount;
+        }
 
         emit({ type: "tool_call", name, label: stepLabel(name, args), args });
 
