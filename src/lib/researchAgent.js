@@ -18,11 +18,17 @@
  */
 
 import { toolSchemas, toolExecutors } from "./agentTools";
+import { CEREBRAS_API_KEY } from "../config";
 
 const GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.1-8b-instant";
 const MAX_ROUNDS    = 4;      // most queries resolve in 1-2 rounds; cap keeps token use bounded
 const LLM_TIMEOUT   = 30_000;
+
+// Cerebras is OpenAI-compatible and a genuinely separate quota from Groq's,
+// used only as a failover when Groq's own rate limit can't be waited out.
+const CEREBRAS_URL   = "https://api.cerebras.ai/v1/chat/completions";
+const CEREBRAS_MODEL = "llama3.1-8b";
 
 // ── Tool-schema trimming ─────────────────────────────────────────────────────
 // The full tool schema JSON (~12 tools with param descriptions) is resent on
@@ -160,11 +166,11 @@ function stepSummary(name, result) {
 // (Groq/OpenAI-compatible chunks never mix the two within one response), and
 // forwards content deltas to onDelta as they arrive so the UI can render the
 // final answer progressively instead of waiting for the whole thing.
-async function callGroqOnce(apiKey, model, messages, tools, temperature, onDelta) {
+async function callGroqOnce(url, apiKey, model, messages, tools, temperature, onDelta) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), LLM_TIMEOUT);
   try {
-    const res = await fetch(GROQ_URL, {
+    const res = await fetch(url, {
       method: "POST", signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -275,13 +281,22 @@ async function callGroq(apiKey, model, messages, tools, onDelta, retries = 2) {
   let temperature = 0.3;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await callGroqOnce(apiKey, model, messages, tools, temperature, onDelta);
+      return await callGroqOnce(GROQ_URL, apiKey, model, messages, tools, temperature, onDelta);
     } catch (e) {
       if (e.code === "rate_limit_exceeded") {
         const waitSeconds = parseRetryAfterSeconds(e.message);
         if (waitSeconds != null && waitSeconds <= RETRY_AFTER_CAP && attempt < retries) {
           await new Promise((r) => setTimeout(r, (waitSeconds + 0.5) * 1000));
           continue;
+        }
+        // The wait is too long to make sense retrying inline (the daily cap,
+        // not a burst) — fail over to a genuinely separate provider and
+        // quota if one is configured, rather than surfacing an error for
+        // something a second free-tier account elsewhere could avoid.
+        if (CEREBRAS_API_KEY) {
+          try {
+            return await callGroqOnce(CEREBRAS_URL, CEREBRAS_API_KEY, CEREBRAS_MODEL, messages, tools, temperature, onDelta);
+          } catch { /* Cerebras also failed — fall through to the original Groq error */ }
         }
         throw e;
       }

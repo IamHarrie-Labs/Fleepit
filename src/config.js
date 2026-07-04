@@ -1,6 +1,13 @@
 // ── Groq AI (LLM behind the research agent) ──────────────────────────────────
 export const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
 
+// ── Cerebras (failover provider) ─────────────────────────────────────────────
+// Optional. A separate provider with its own quota, entirely independent of
+// Groq's — used only when Groq's own rate limit is hit and the wait is too
+// long to retry inline. Leave unset and the agent just behaves as it always
+// has, surfacing Groq's rate-limit message like before.
+export const CEREBRAS_API_KEY = import.meta.env.VITE_CEREBRAS_API_KEY || "";
+
 // ── Telegram (alerts bot) ─────────────────────────────────────────────────────
 export const TELEGRAM_BOT_TOKEN    = import.meta.env.VITE_TELEGRAM_BOT_TOKEN    || "";
 export const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "";
